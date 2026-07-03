@@ -1,0 +1,177 @@
+[
+    {
+        "id": 1,
+        "nombre_marca": "AUDI",
+        "logo": "/car-brands/audi-logo-2016-download.png"
+    },
+    {
+        "id": 2,
+        "nombre_marca": "BMW",
+        "logo": "/car-brands/bmw-logo-2020-gray-download.png"
+    },
+    {
+        "id": 3,
+        "nombre_marca": "CHEVROLET",
+        "logo": "/car-brands/Chevrolet-logo-2013-2560x1440.png"
+    },
+    {
+        "id": 4,
+        "nombre_marca": "CHIREY",
+        "logo": "/car-brands/logotipo_chirey.png"
+    },
+    {
+        "id": 5,
+        "nombre_marca": "CHRYSLER / DODGE",
+        "logo": "/car-brands/dodge-logo-2010-download.png"
+    },
+    {
+        "id": 6,
+        "nombre_marca": "FIAT",
+        "logo": "/car-brands/Fiat-logo-2006-1920x1080.png"
+    },
+    {
+        "id": 7,
+        "nombre_marca": "FORD",
+        "logo": "/car-brands/ford-logo-2017-download.png"
+    },
+    {
+        "id": 8,
+        "nombre_marca": "FOTON",
+        "logo": "/car-brands/Foton-logo-2800x800.png"
+    },
+    {
+        "id": 9,
+        "nombre_marca": "FREIGHTLINER",
+        "logo": "/car-brands/Freightliner-logo-6000x2000.png"
+    },
+    {
+        "id": 10,
+        "nombre_marca": "GEELY",
+        "logo": "/car-brands/Geely-logo-2014-2560x1440.png"
+    },
+    {
+        "id": 11,
+        "nombre_marca": "GWM",
+        "logo": "/car-brands/Great-Wall-logo-2007-2048x2048.png"
+    },
+    {
+        "id": 12,
+        "nombre_marca": "HINO",
+        "logo": "/car-brands/Hino-logo-2048x2048.png"
+    },
+    {
+        "id": 13,
+        "nombre_marca": "HONDA",
+        "logo": "/car-brands/honda-logo-2000-full-download.png"
+    },
+    {
+        "id": 14,
+        "nombre_marca": "HYUNDAI",
+        "logo": "/car-brands/hyundai-logo-2011-download.png"
+    },
+    {
+        "id": 15,
+        "nombre_marca": "INTERNATIONAL",
+        "logo": "/car-brands/International-Trucks-logo-1200x1200.png"
+    },
+    {
+        "id": 16,
+        "nombre_marca": "ISUZU",
+        "logo": "/car-brands/Isuzu-logo-1991-3840x2160.png"
+    },
+    {
+        "id": 17,
+        "nombre_marca": "JAC",
+        "logo": "/car-brands/JAC-Motors-logo-2016-1920x1080.png"
+    },
+    {
+        "id": 18,
+        "nombre_marca": "JMC",
+        "logo": "/car-brands/Jiangling-logo-1280x1024.png"
+    },
+    {
+        "id": 19,
+        "nombre_marca": "KENWORTH",
+        "logo": "/car-brands/Kenworth-logo-1920x1080.png"
+    },
+    {
+        "id": 20,
+        "nombre_marca": "KIA",
+        "logo": "/car-brands/Kia-logo-2560x1440.png"
+    },
+    {
+        "id": 21,
+        "nombre_marca": "MAN",
+        "logo": "/car-brands/MAN-logo-1920x1080.png"
+    },
+    {
+        "id": 22,
+        "nombre_marca": "MAZDA",
+        "logo": "/car-brands/mazda-logo-2018-vertical-download.png"
+    },
+    {
+        "id": 23,
+        "nombre_marca": "MERCEDES BENZ",
+        "logo": "/car-brands/Mercedes-Benz-logo-2011-1920x1080.png"
+    },
+    {
+        "id": 24,
+        "nombre_marca": "MG",
+        "logo": "/car-brands/MG-logo-red-2010-1920x1080.png"
+    },
+    {
+        "id": 25,
+        "nombre_marca": "MINI",
+        "logo": "/car-brands/Mini-logo-2001-1920x1080.png"
+    },
+    {
+        "id": 26,
+        "nombre_marca": "MITSUBISHI",
+        "logo": "/car-brands/Mitsubishi-logo-640x550.jpg"
+    },
+    {
+        "id": 27,
+        "nombre_marca": "NISSAN",
+        "logo": "/car-brands/nissan-logo-2020-black.png"
+    },
+    {
+        "id": 28,
+        "nombre_marca": "PEUGEOT",
+        "logo": "/car-brands/Peugeot-logo-2010-1920x1080.png"
+    },
+    {
+        "id": 29,
+        "nombre_marca": "PORSCHE",
+        "logo": "/car-brands/porsche-logo-2014-full-download.png"
+    },
+    {
+        "id": 30,
+        "nombre_marca": "RENAULT",
+        "logo": "/car-brands/Renault-logo-2015-2048x2048.png"
+    },
+    {
+        "id": 31,
+        "nombre_marca": "SEAT",
+        "logo": "/car-brands/SEAT-logo-2012-6000x5000.png"
+    },
+    {
+        "id": 32,
+        "nombre_marca": "SUZUKI",
+        "logo": "/car-brands/Suzuki-logo-5000x2500.png"
+    },
+    {
+        "id": 33,
+        "nombre_marca": "TOYOTA",
+        "logo": "/car-brands/toyota-logo-2020-europe-download.png"
+    },
+    {
+        "id": 34,
+        "nombre_marca": "UNIVERSAL",
+        "logo": null
+    },
+    {
+        "id": 35,
+        "nombre_marca": "VOLKSWAGEN",
+        "logo": "/car-brands/Volkswagen-logo-2019-1500x1500.png"
+    }
+]
