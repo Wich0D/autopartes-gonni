@@ -10,12 +10,23 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --animate-shine-loop: shine-loop 1.8s infinite linear;
+
+  @keyframes shine-loop {
+    0% {
+      transform: translateX(-150%) skewX(-20deg);
+    }
+
+    100% {
+      transform: translateX(150%) skewX(-20deg);
+    }
+  }
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 
