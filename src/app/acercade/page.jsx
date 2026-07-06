@@ -1,7 +1,13 @@
+import AboutSection from "@/components/AboutPage/AboutSection";
+
 export default function AboutPage() {
     return (
-        <div>
-            <h1>Acerca de</h1>
+        <div className="w-full h-full flex flex-col items-center">
+            <AboutSection />
+            <section>
+                <h2></h2>
+            </section>
         </div>
+
     );
 }

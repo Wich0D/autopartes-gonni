@@ -135,15 +135,6 @@ export default function Navbar() {
                         </li>
                         <li>
                             <Link
-                                href="/catalogo"
-                                onClick={() => setIsSidebarOpen(false)}
-                                className="block py-2 text-neutral-300 hover:text-white transition-colors"
-                            >
-                                Catálogo
-                            </Link>
-                        </li>
-                        <li>
-                            <Link
                                 href="/contacto"
                                 onClick={() => setIsSidebarOpen(false)}
                                 className="block py-2 text-neutral-300 hover:text-white transition-colors"
