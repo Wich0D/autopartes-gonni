@@ -38,10 +38,13 @@ export default function Navbar() {
                         <Link href="/">Inicio</Link>
                     </li>
                     <li className="relative py-2 text-neutral-300 hover:text-white cursor-pointer transition-colors duration-300 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[2px] after:bottom-0 after:left-0 after:bg-white after:origin-center after:transition-transform after:duration-300 hover:after:scale-x-100">
-                        Acerca de
+                        <Link href="/acercade">Acerca de</Link>
                     </li>
                     <li className="relative py-2 text-neutral-300 hover:text-white cursor-pointer transition-colors duration-300 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[2px] after:bottom-0 after:left-0 after:bg-white after:origin-center after:transition-transform after:duration-300 hover:after:scale-x-100">
                         <Link href="/catalogo">Catálogo</Link>
+                    </li>
+                    <li className="relative py-2 text-neutral-300 hover:text-white cursor-pointer transition-colors duration-300 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[2px] after:bottom-0 after:left-0 after:bg-white after:origin-center after:transition-transform after:duration-300 hover:after:scale-x-100">
+                        <Link href="/contacto">Contacto</Link>
                     </li>
                     <li className="bg-white text-black/60 text-sm px-3 py-1 flex items-center gap-3 rounded-full">
                         <FaSearch size={20} className="cursor-pointer" />
@@ -61,9 +64,8 @@ export default function Navbar() {
 
             {/* Mobile Search Dropdown Overlay */}
             <div
-                className={`fixed left-0 w-full bg-neutral-900 border-t border-neutral-800 shadow-lg z-40 transition-all duration-300 ease-in-out md:hidden ${
-                    isSearchOpen ? "top-24 opacity-100 visible py-4 px-4" : "top-12 opacity-0 invisible h-0 overflow-hidden"
-                }`}
+                className={`fixed left-0 w-full bg-neutral-900 border-t border-neutral-800 shadow-lg z-40 transition-all duration-300 ease-in-out md:hidden ${isSearchOpen ? "top-24 opacity-100 visible py-4 px-4" : "top-12 opacity-0 invisible h-0 overflow-hidden"
+                    }`}
             >
                 <div className="relative flex items-center bg-white text-black/60 px-4 py-2 rounded-full shadow-inner">
                     <FaSearch size={18} className="text-neutral-500 mr-2" />
@@ -78,16 +80,14 @@ export default function Navbar() {
             {/* Mobile Sidebar Back-drop */}
             <div
                 onClick={() => setIsSidebarOpen(false)}
-                className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${
-                    isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                }`}
+                className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                    }`}
             />
 
             {/* Mobile Sidebar Panel */}
             <div
-                className={`fixed top-0 left-0 w-72 h-full bg-neutral-950 text-white z-50 shadow-2xl transition-transform duration-300 ease-out transform md:hidden ${
-                    isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                }`}
+                className={`fixed top-0 left-0 w-72 h-full bg-neutral-950 text-white z-50 shadow-2xl transition-transform duration-300 ease-out transform md:hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+                    }`}
             >
                 <div className="flex flex-col h-full p-6">
                     {/* Sidebar Header with Logo and Close Button */}
@@ -96,9 +96,9 @@ export default function Navbar() {
                             <Image src={"/gonni_logo_2.png"} alt="Logo" width={90} height={90} priority className="h-12 w-auto object-contain" />
                         </Link>
                         <button
-                          onClick={() => setIsSidebarOpen(false)}
-                          className="text-neutral-400 hover:text-white focus:outline-none p-1 transition-colors"
-                          aria-label="Cerrar menú"
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="text-neutral-400 hover:text-white focus:outline-none p-1 transition-colors"
+                            aria-label="Cerrar menú"
                         >
                             <FaTimes size={22} />
                         </button>
@@ -116,12 +116,13 @@ export default function Navbar() {
                             </Link>
                         </li>
                         <li>
-                            <span
+                            <Link
+                                href="/acercade"
                                 onClick={() => setIsSidebarOpen(false)}
                                 className="block py-2 text-neutral-300 hover:text-white cursor-pointer transition-colors"
                             >
                                 Acerca de
-                            </span>
+                            </Link>
                         </li>
                         <li>
                             <Link
@@ -130,6 +131,24 @@ export default function Navbar() {
                                 className="block py-2 text-neutral-300 hover:text-white transition-colors"
                             >
                                 Catálogo
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
+                                href="/catalogo"
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="block py-2 text-neutral-300 hover:text-white transition-colors"
+                            >
+                                Catálogo
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
+                                href="/contacto"
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="block py-2 text-neutral-300 hover:text-white transition-colors"
+                            >
+                                Contacto
                             </Link>
                         </li>
                     </ul>
