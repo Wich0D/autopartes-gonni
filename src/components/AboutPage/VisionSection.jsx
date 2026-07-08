@@ -19,7 +19,7 @@ export default function VisionSection() {
             </div>
             <div className="w-full md:w-1/2 flex justify-center">
                 <Image
-                    src="/vision.png"
+                    src="/vision_img.png"
                     alt="Auto formado por refacciones"
                     width={500}
                     height={500}
