@@ -1,8 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function BrandCard({ brand }) {
   return (
-    <div className="flex flex-col items-center p-3 bg-white border border-neutral-200 rounded-2xl shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md hover:border-black/20 group cursor-pointer">
+    <Link
+      href={`/catalogo?marca=${encodeURIComponent(brand.nombre_marca)}`}
+      className="flex flex-col items-center p-3 bg-white border border-neutral-200 rounded-2xl shadow-sm transition-all duration-300 hover:scale-105 hover:shadow-md hover:border-black/20 group cursor-pointer w-full"
+    >
       {/* Square logo container */}
       <div className="w-full aspect-square bg-neutral-50 flex items-center justify-center p-3 rounded-xl relative overflow-hidden">
         {brand.logo ? (
@@ -29,6 +33,6 @@ export default function BrandCard({ brand }) {
           {brand.nombre_marca}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }

@@ -32,7 +32,7 @@ export default function AboutImageExhibitor() {
     <div className="relative w-full h-full min-h-[350px] md:min-h-[500px] overflow-hidden">
       {/* Background Image Container with slow fade transition */}
       <div
-        className={`w-full h-full transition-opacity duration-[2300ms] ease-in-out ${isFading ? "opacity-0" : "opacity-80"
+        className={`w-full h-full transition-opacity duration-[1000ms] ease-in-out ${isFading ? "opacity-0" : "opacity-80"
           }`}
       >
         <Image

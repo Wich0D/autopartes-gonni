@@ -1,49 +1,140 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import ProductFilters from "./ProductFilters";
 import ProductTable from "./ProductTable";
-
-const MOCK_PRODUCTS = [
-  { id: 1, modelo: "TS-III 1.6L", anio_inicial: 1992, anio_final: 2017, marca: "NISSAN", categoria: "Abrazadera", codigo: "ABR-TS3-01", precio: "120.00" },
-  { id: 2, modelo: "AUDI Q2", anio_inicial: 2018, anio_final: 2020, marca: "AUDI", categoria: "Alerón", codigo: "ADAQ218RH", precio: "3944.00" },
-  { id: 3, modelo: "SENTRA 2.0L", anio_inicial: 2013, anio_final: 2019, marca: "NISSAN", categoria: "Amortiguador", codigo: "AMO-SN13-D", precio: "1850.00" },
-  { id: 4, modelo: "JETTA A6 2.5L", anio_inicial: 2011, anio_final: 2018, marca: "VOLKSWAGEN", categoria: "Filtro de Aire", codigo: "FIL-JT6-25", precio: "320.00" },
-  { id: 5, modelo: "COROLLA 1.8L", anio_inicial: 2014, anio_final: 2019, marca: "TOYOTA", categoria: "Balatas", codigo: "BAL-CR14-F", precio: "850.00" },
-  { id: 6, modelo: "CHEVY 1.6L", anio_inicial: 1996, anio_final: 2012, marca: "CHEVROLET", categoria: "Bomba de Agua", codigo: "BOM-CH96", precio: "640.00" },
-  { id: 7, modelo: "CIVIC 1.5T", anio_inicial: 2016, anio_final: 2021, marca: "HONDA", categoria: "Filtro de Aceite", codigo: "FIL-CV16", precio: "210.00" },
-  { id: 8, modelo: "RANGER 2.3L", anio_inicial: 2020, anio_final: 2023, marca: "FORD", categoria: "Faro Principal", codigo: "FAR-FR20-L", precio: "4200.00" },
-  { id: 9, modelo: "MARCH 1.6L", anio_inicial: 2012, anio_final: 2020, marca: "NISSAN", categoria: "Bujía", codigo: "BUJ-MR12", precio: "95.00" },
-  { id: 10, modelo: "AVEO 1.6L", anio_inicial: 2008, anio_final: 2017, marca: "CHEVROLET", categoria: "Balatas", codigo: "BAL-AV08-R", precio: "550.00" },
-  { id: 11, modelo: "HILUX 2.7L", anio_inicial: 2016, anio_final: 2022, marca: "TOYOTA", categoria: "Amortiguador", codigo: "AMO-HL16-T", precio: "2100.00" },
-  { id: 12, modelo: "VERSA 1.6L", anio_inicial: 2012, anio_final: 2019, marca: "NISSAN", categoria: "Filtro de Cabina", codigo: "FIL-VR12", precio: "180.00" },
-  { id: 13, modelo: "MAZDA 3 2.5L", anio_inicial: 2014, anio_final: 2018, marca: "MAZDA", categoria: "Bomba de Agua", codigo: "BOM-MZ14", precio: "1150.00" },
-  { id: 14, modelo: "IBIZA 1.6L", anio_inicial: 2010, anio_final: 2017, marca: "SEAT", categoria: "Faro Principal", codigo: "FAR-IB10-R", precio: "3100.00" },
-  { id: 15, modelo: "GOLF A7 1.4T", anio_inicial: 2015, anio_final: 2020, marca: "VOLKSWAGEN", categoria: "Bujía", codigo: "BUJ-GF15", precio: "280.00" }
-];
+import { supabase } from "@/utils/supabase";
 
 export default function ProductCatalog() {
+  const searchParams = useSearchParams();
+
+  const [products, setProducts] = useState([]);
+  const [brands, setBrands] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
+
+  // Sincronizar selectedBrand y searchQuery con los query params
+  useEffect(() => {
+    const urlBrand = searchParams?.get("marca");
+    if (urlBrand) {
+      setSelectedBrand(urlBrand);
+    }
+
+    const urlSearch = searchParams?.get("search");
+    if (urlSearch) {
+      setSearchQuery(urlSearch);
+    }
+  }, [searchParams]);
+
   const [selectedCategory, setSelectedCategory] = useState("");
   const [enableYearRange, setEnableYearRange] = useState(false);
-  const [minYear, setMinYear] = useState(1992);
-  const [maxYear, setMaxYear] = useState(2023);
+  
+  // Limites del rango de años dinámicos
+  const [minLimitYear, setMinLimitYear] = useState(1990);
+  const [maxLimitYear, setMaxLimitYear] = useState(2026);
+  const [minYear, setMinYear] = useState(1990);
+  const [maxYear, setMaxYear] = useState(2026);
+  
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Get unique brands and categories for filter options
-  const brands = useMemo(() => {
-    return Array.from(new Set(MOCK_PRODUCTS.map((p) => p.marca))).sort();
-  }, []);
+  // Fetch products, brands and categories from Supabase on mount
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setIsLoading(true);
+        
+        // 1. Obtener todos los productos de forma iterativa en bloques de 1000 para superar el limite de PostgREST
+        let prodData = [];
+        let pageNum = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-  const categories = useMemo(() => {
-    return Array.from(new Set(MOCK_PRODUCTS.map((p) => p.categoria))).sort();
+        while (hasMore) {
+          const { data, error: fetchError } = await supabase
+            .from("productos")
+            .select(`
+              id,
+              codigo_original,
+              modelo,
+              anio_inicio,
+              anio_final,
+              marcas (nombre_marca),
+              categorias (nombre_categoria)
+            `)
+            .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1);
+
+          if (fetchError) throw fetchError;
+
+          prodData = [...prodData, ...(data || [])];
+
+          if (!data || data.length < pageSize) {
+            hasMore = false;
+          } else {
+            pageNum++;
+          }
+        }
+
+        // 2. Obtener categorias directamente de su tabla de base de datos
+        const { data: catData, error: catError } = await supabase
+          .from("categorias")
+          .select("nombre_categoria")
+          .order("nombre_categoria", { ascending: true });
+
+        if (catError) throw catError;
+
+        // 3. Obtener marcas directamente de su tabla de base de datos
+        const { data: brandData, error: brandError } = await supabase
+          .from("marcas")
+          .select("nombre_marca")
+          .order("nombre_marca", { ascending: true });
+
+        if (brandError) throw brandError;
+
+        // Formatear al esquema esperado por la tabla y filtros
+        const formattedProducts = (prodData || []).map((prod) => ({
+          id: prod.id,
+          codigo: prod.codigo_original || "",
+          modelo: prod.modelo || "",
+          anio_inicial: prod.anio_inicio || 1990,
+          anio_final: prod.anio_final || 2026,
+          marca: prod.marcas?.nombre_marca || "SIN MARCA",
+          categoria: prod.categorias?.nombre_categoria || "SIN CATEGORIA",
+        }));
+
+        // Calcular limites dinamicos de años basados en los productos de la base de datos
+        const yearsStart = formattedProducts.map((p) => p.anio_inicial).filter((y) => y > 0);
+        const yearsEnd = formattedProducts.map((p) => p.anio_final).filter((y) => y > 0);
+        const calculatedMin = yearsStart.length > 0 ? Math.min(...yearsStart) : 1990;
+        const calculatedMax = yearsEnd.length > 0 ? Math.max(...yearsEnd) : 2026;
+
+        setMinLimitYear(calculatedMin);
+        setMaxLimitYear(calculatedMax);
+        setMinYear(calculatedMin);
+        setMaxYear(calculatedMax);
+        
+        setProducts(formattedProducts);
+        setCategories((catData || []).map((c) => c.nombre_categoria).filter(Boolean));
+        setBrands((brandData || []).map((b) => b.nombre_marca).filter(Boolean));
+      } catch (err) {
+        console.error("Error fetching data from Supabase:", err);
+        setError("Ocurrió un error al cargar el catálogo de autopartes. Por favor, intenta de nuevo.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchData();
   }, []);
 
   // Filter products based on search query, selected brand, and selected category
   const filteredProducts = useMemo(() => {
-    return MOCK_PRODUCTS.filter((product) => {
+    return products.filter((product) => {
       const matchesSearch =
         product.modelo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.codigo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -58,7 +149,7 @@ export default function ProductCatalog() {
 
       return matchesSearch && matchesBrand && matchesCategory && matchesYear;
     });
-  }, [searchQuery, selectedBrand, selectedCategory, enableYearRange, minYear, maxYear]);
+  }, [products, searchQuery, selectedBrand, selectedCategory, enableYearRange, minYear, maxYear]);
 
   // Handle pagination calculation
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -73,10 +164,50 @@ export default function ProductCatalog() {
     setSelectedBrand("");
     setSelectedCategory("");
     setEnableYearRange(false);
-    setMinYear(1992);
-    setMaxYear(2023);
+    setMinYear(minLimitYear);
+    setMaxYear(maxLimitYear);
     setCurrentPage(1);
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full flex flex-col gap-6 animate-pulse pb-10">
+        {/* Filters Skeleton */}
+        <div className="h-32 bg-neutral-200/60 rounded-2xl w-full" />
+        {/* Table Skeleton */}
+        <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm overflow-hidden w-full">
+          <div className="h-12 bg-neutral-300/40 w-full" />
+          <div className="divide-y divide-neutral-200">
+            {Array.from({ length: 8 }).map((_, idx) => (
+              <div key={idx} className="h-16 bg-neutral-50/20 flex items-center px-6 justify-between">
+                <div className="h-4 bg-neutral-200/80 rounded w-1/6" />
+                <div className="h-4 bg-neutral-200/80 rounded w-1/4" />
+                <div className="h-4 bg-neutral-200/80 rounded w-1/12" />
+                <div className="h-4 bg-neutral-200/80 rounded w-1/6" />
+                <div className="h-4 bg-neutral-200/80 rounded w-1/6" />
+                <div className="h-8 bg-neutral-200/80 rounded w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full bg-red-50/50 border border-red-200/80 text-red-700 px-6 py-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center gap-3">
+        <p className="font-extrabold text-xl">Error al cargar productos</p>
+        <p className="text-sm text-red-600 max-w-md">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+        >
+          Reintentar Carga
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 w-full pb-10">
@@ -93,6 +224,8 @@ export default function ProductCatalog() {
         setMinYear={setMinYear}
         maxYear={maxYear}
         setMaxYear={setMaxYear}
+        minLimitYear={minLimitYear}
+        maxLimitYear={maxLimitYear}
         brands={brands}
         categories={categories}
         resetFilters={resetFilters}
@@ -110,3 +243,4 @@ export default function ProductCatalog() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import ProductCatalog from "@/components/CatalogPage/ProductCatalog";
 
 export default function Catalogo() {
@@ -15,8 +16,15 @@ export default function Catalogo() {
                         </p>
                     </div>
                 </div>
-                <ProductCatalog />
+                <Suspense fallback={
+                    <div className="w-full flex flex-col gap-6 animate-pulse pb-10">
+                        <div className="h-32 bg-neutral-200/60 rounded-2xl w-full" />
+                        <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm overflow-hidden w-full h-96" />
+                    </div>
+                }>
+                    <ProductCatalog />
+                </Suspense>
             </div>
         </div>
     );
-}
+}

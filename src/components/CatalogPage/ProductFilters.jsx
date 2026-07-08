@@ -1,6 +1,7 @@
 "use client";
 
 import { FaSearch, FaUndo } from "react-icons/fa";
+import SearchableSelect from "./SearchableSelect";
 
 export default function ProductFilters({
   searchQuery,
@@ -15,11 +16,18 @@ export default function ProductFilters({
   setMinYear,
   maxYear,
   setMaxYear,
+  minLimitYear,
+  maxLimitYear,
   brands,
   categories,
   resetFilters,
   setCurrentPage,
 }) {
+  const rangeSpan = maxLimitYear - minLimitYear;
+  const leftPercent = rangeSpan > 0 ? ((minYear - minLimitYear) / rangeSpan) * 100 : 0;
+  const rightPercent = rangeSpan > 0 ? 100 - (((maxYear - minLimitYear) / rangeSpan) * 100) : 0;
+  const midYearThreshold = minLimitYear + (rangeSpan / 2);
+
   return (
     <div className="flex flex-col gap-4 bg-neutral-50/60 border border-neutral-100 p-5 rounded-2xl shadow-sm">
       {/* Row 1: Search and Selects */}
@@ -41,40 +49,32 @@ export default function ProductFilters({
 
         {/* Brand Dropdown */}
         <div>
-          <select
+          <SearchableSelect
             value={selectedBrand}
-            onChange={(e) => {
-              setSelectedBrand(e.target.value);
+            onChange={(val) => {
+              setSelectedBrand(val);
               setCurrentPage(1);
             }}
-            className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white shadow-sm focus:outline-none focus:border-red-500 transition text-sm text-neutral-800"
-          >
-            <option value="">Todas las marcas</option>
-            {brands.map((brand) => (
-              <option key={brand} value={brand}>
-                {brand}
-              </option>
-            ))}
-          </select>
+            options={brands}
+            placeholder="Todas las marcas"
+            emptyMessage="No se encontraron marcas"
+          />
         </div>
 
         {/* Category Dropdown & Clear Filters */}
-        <div className="flex gap-2">
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full px-4 py-2.5 rounded-xl border border-neutral-200 bg-white shadow-sm focus:outline-none focus:border-red-500 transition text-sm text-neutral-800"
-          >
-            <option value="">Todas las categorías</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+        <div className="flex gap-2 flex-1 min-w-[200px]">
+          <div className="flex-1">
+            <SearchableSelect
+              value={selectedCategory}
+              onChange={(val) => {
+                setSelectedCategory(val);
+                setCurrentPage(1);
+              }}
+              options={categories}
+              placeholder="Todas las categorías"
+              emptyMessage="No se encontraron categorías"
+            />
+          </div>
 
           {/* Reset button */}
           {(searchQuery || selectedBrand || selectedCategory || enableYearRange) && (
@@ -120,16 +120,16 @@ export default function ProductFilters({
               <div
                 className="absolute h-1.5 bg-red-600 rounded-full"
                 style={{
-                  left: `${((minYear - 1992) / (2023 - 1992)) * 100}%`,
-                  right: `${100 - ((maxYear - 1992) / (2023 - 1992)) * 100}%`
+                  left: `${leftPercent}%`,
+                  right: `${rightPercent}%`
                 }}
               />
 
               {/* Min Year Range Input */}
               <input
                 type="range"
-                min="1992"
-                max="2023"
+                min={minLimitYear}
+                max={maxLimitYear}
                 value={minYear}
                 onChange={(e) => {
                   const val = Math.min(parseInt(e.target.value), maxYear);
@@ -137,14 +137,14 @@ export default function ProductFilters({
                   setCurrentPage(1);
                 }}
                 className="absolute pointer-events-none appearance-none w-full bg-transparent h-1 outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-red-600 [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-red-600 [&::-moz-range-thumb]:pointer-events-auto cursor-pointer"
-                style={{ zIndex: minYear > 2007 ? 12 : 11 }}
+                style={{ zIndex: minYear > midYearThreshold ? 12 : 11 }}
               />
 
               {/* Max Year Range Input */}
               <input
                 type="range"
-                min="1992"
-                max="2023"
+                min={minLimitYear}
+                max={maxLimitYear}
                 value={maxYear}
                 onChange={(e) => {
                   const val = Math.max(parseInt(e.target.value), minYear);

@@ -3,11 +3,26 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { FaSearch, FaBars, FaTimes } from "react-icons/fa";
 
 export default function Navbar() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchValue, setSearchValue] = useState("");
+
+    const pathname = usePathname();
+    const router = useRouter();
+
+    const isCatalogPage = pathname === "/catalogo";
+
+    const handleSearch = () => {
+        if (searchValue.trim()) {
+            router.push(`/catalogo?search=${encodeURIComponent(searchValue.trim())}`);
+            setSearchValue("");
+            setIsSearchOpen(false);
+        }
+    };
 
     return (
         <>
@@ -46,36 +61,52 @@ export default function Navbar() {
                     <li className="relative py-2 text-neutral-300 hover:text-white cursor-pointer transition-colors duration-300 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-[2px] after:bottom-0 after:left-0 after:bg-white after:origin-center after:transition-transform after:duration-300 hover:after:scale-x-100">
                         <Link href="/contacto">Contacto</Link>
                     </li>
-                    <li className="bg-white text-black/60 text-sm px-3 py-1 flex items-center gap-3 rounded-full">
-                        <FaSearch size={20} className="cursor-pointer" />
-                        <input type="text" placeholder="Busca un producto" className="w-40 h-8 rounded-sm px-2 border-none outline-none focus:ring-0" />
-                    </li>
+                    {!isCatalogPage && (
+                        <li className="bg-white text-black/60 text-sm px-3 py-1 flex items-center gap-3 rounded-full">
+                            <FaSearch size={20} className="cursor-pointer" onClick={handleSearch} />
+                            <input
+                                type="text"
+                                placeholder="Busca un producto"
+                                value={searchValue}
+                                onChange={(e) => setSearchValue(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                                className="w-40 h-8 rounded-sm px-2 border-none outline-none focus:ring-0 text-black"
+                            />
+                        </li>
+                    )}
                 </ul>
 
                 {/* Mobile Search Toggle */}
-                <button
-                    onClick={() => setIsSearchOpen(!isSearchOpen)}
-                    className="md:hidden text-white p-2 hover:text-neutral-400 focus:outline-none transition-colors"
-                    aria-label="Buscar producto"
-                >
-                    <FaSearch size={22} />
-                </button>
+                {!isCatalogPage && (
+                    <button
+                        onClick={() => setIsSearchOpen(!isSearchOpen)}
+                        className="md:hidden text-white p-2 hover:text-neutral-400 focus:outline-none transition-colors"
+                        aria-label="Buscar producto"
+                    >
+                        <FaSearch size={22} />
+                    </button>
+                )}
             </nav>
 
             {/* Mobile Search Dropdown Overlay */}
-            <div
-                className={`fixed left-0 w-full bg-neutral-900 border-t border-neutral-800 shadow-lg z-40 transition-all duration-300 ease-in-out md:hidden ${isSearchOpen ? "top-24 opacity-100 visible py-4 px-4" : "top-12 opacity-0 invisible h-0 overflow-hidden"
-                    }`}
-            >
-                <div className="relative flex items-center bg-white text-black/60 px-4 py-2 rounded-full shadow-inner">
-                    <FaSearch size={18} className="text-neutral-500 mr-2" />
-                    <input
-                        type="text"
-                        placeholder="Busca un producto..."
-                        className="w-full bg-transparent border-none outline-none text-base placeholder-neutral-400 focus:ring-0 text-black"
-                    />
+            {!isCatalogPage && (
+                <div
+                    className={`fixed left-0 w-full bg-neutral-900 border-t border-neutral-800 shadow-lg z-40 transition-all duration-300 ease-in-out md:hidden ${isSearchOpen ? "top-24 opacity-100 visible py-4 px-4" : "top-12 opacity-0 invisible h-0 overflow-hidden"
+                        }`}
+                >
+                    <div className="relative flex items-center bg-white text-black/60 px-4 py-2 rounded-full shadow-inner">
+                        <FaSearch size={18} className="text-neutral-500 mr-2 hover:text-neutral-800 transition cursor-pointer" onClick={handleSearch} />
+                        <input
+                            type="text"
+                            placeholder="Busca un producto..."
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                            className="w-full bg-transparent border-none outline-none text-base placeholder-neutral-400 focus:ring-0 text-black"
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Mobile Sidebar Back-drop */}
             <div
