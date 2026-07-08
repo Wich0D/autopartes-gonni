@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { FaWhatsapp } from "react-icons/fa";
 
 export default function ProductTable({
@@ -11,6 +12,45 @@ export default function ProductTable({
   itemsPerPage,
   resetFilters,
 }) {
+  const [inputPage, setInputPage] = useState(currentPage.toString());
+
+  useEffect(() => {
+    setInputPage(currentPage.toString());
+  }, [currentPage]);
+
+  const handlePageInputChange = (e) => {
+    const val = e.target.value;
+    setInputPage(val);
+    const pageNum = parseInt(val, 10);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+      setCurrentPage(pageNum);
+    }
+  };
+
+  const handlePageInputBlur = () => {
+    const pageNum = parseInt(inputPage, 10);
+    if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
+      setInputPage(currentPage.toString());
+    }
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 3) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage === 1) {
+        pages.push(1, 2, 3);
+      } else if (currentPage === totalPages) {
+        pages.push(totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(currentPage - 1, currentPage, currentPage + 1);
+      }
+    }
+    return pages;
+  };
   // Helper to build WhatsApp custom message
   const getWhatsAppLink = (product) => {
     const phone = "525651824849";
@@ -149,48 +189,69 @@ export default function ProductTable({
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-neutral-200 px-4 py-4 sm:px-6 mt-4">
-              <div className="flex flex-1 justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 transition"
-                >
-                  Anterior
-                </button>
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative ml-3 inline-flex items-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 transition"
-                >
-                  Siguiente
-                </button>
+            <div className="flex flex-col sm:flex-row items-center justify-between border-t border-neutral-200 px-4 py-4 sm:px-6 mt-4 gap-4">
+              <div>
+                <p className="text-sm text-neutral-600 text-center sm:text-left">
+                  Mostrando del <span className="font-semibold">{((currentPage - 1) * itemsPerPage) + 1}</span> al{" "}
+                  <span className="font-semibold">
+                    {Math.min(currentPage * itemsPerPage, filteredProducts.length)}
+                  </span>{" "}
+                  de <span className="font-semibold">{filteredProducts.length}</span> resultados
+                </p>
               </div>
-              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-neutral-600">
-                    Mostrando del <span className="font-semibold">{((currentPage - 1) * itemsPerPage) + 1}</span> al{" "}
-                    <span className="font-semibold">
-                      {Math.min(currentPage * itemsPerPage, filteredProducts.length)}
-                    </span>{" "}
-                    de <span className="font-semibold">{filteredProducts.length}</span> resultados
-                  </p>
-                </div>
-                <div>
-                  <nav className="isolate inline-flex -space-x-px rounded-xl shadow-sm gap-1" aria-label="Pagination">
-                    {Array.from({ length: totalPages }).map((_, idx) => (
+
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {/* Navigation Controls */}
+                <div className="flex items-center gap-1.5">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-3 py-2 rounded-xl text-sm font-semibold text-neutral-900 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 bg-white disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                  >
+                    Anterior
+                  </button>
+
+                  {/* 3 Page Numbers Window */}
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers().map((page) => (
                       <button
-                        key={idx + 1}
-                        onClick={() => setCurrentPage(idx + 1)}
-                        className={`relative inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${currentPage === idx + 1
-                          ? "z-10 bg-red-600 text-white"
-                          : "text-neutral-900 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 bg-white"
-                          }`}
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
+                          currentPage === page
+                            ? "z-10 bg-red-600 text-white animate-fade-in"
+                            : "text-neutral-900 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 bg-white"
+                        }`}
                       >
-                        {idx + 1}
+                        {page}
                       </button>
                     ))}
-                  </nav>
+                  </div>
+
+                  {/* Next Button */}
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-3 py-2 rounded-xl text-sm font-semibold text-neutral-900 ring-1 ring-inset ring-neutral-300 hover:bg-neutral-50 bg-white disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+
+                {/* Direct Page Input selector */}
+                <div className="flex items-center gap-2 text-sm text-neutral-600 border-l border-neutral-200 pl-3 h-8">
+                  <span>Ir a:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max={totalPages}
+                    value={inputPage}
+                    onChange={handlePageInputChange}
+                    onBlur={handlePageInputBlur}
+                    className="w-14 px-2 py-1 text-center font-semibold text-neutral-950 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <span>de {totalPages}</span>
                 </div>
               </div>
             </div>
