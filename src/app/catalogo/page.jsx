@@ -1,6 +1,11 @@
 import { Suspense } from "react";
 import ProductCatalog from "@/components/CatalogPage/ProductCatalog";
 
+export const metadata = {
+    title: "Catálogo de Refacciones",
+    description: "Explora nuestro catálogo completo de refacciones y autopartes de alta calidad para todas las marcas. Busca y cotiza amortiguadores, balatas, filtros y más.",
+};
+
 export default function Catalogo() {
     return (
         <div className="w-full min-h-[calc(100vh-6rem)] flex flex-col items-center bg-neutral-50/30">
