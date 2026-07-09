@@ -3,11 +3,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
+import GeneralStats from "@/components/AdminPanelPage/GeneralStats";
+import AdminTable from "@/components/AdminPanelPage/AdminTable";
 
 export default function PanelAdminPage() {
     const router = useRouter();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     useEffect(() => {
         async function checkAuth() {
@@ -44,15 +47,6 @@ export default function PanelAdminPage() {
         };
     }, [router]);
 
-    const handleSignOut = async () => {
-        try {
-            await supabase.auth.signOut();
-            router.push("/admin");
-        } catch (err) {
-            console.error("Error signing out:", err);
-        }
-    };
-
     if (loading) {
         return (
             <div className="w-full min-h-[70vh] flex flex-col justify-center items-center gap-4 text-white">
@@ -63,11 +57,13 @@ export default function PanelAdminPage() {
     }
 
     return (
-        <div className="flex-grow flex flex-col items-center justify-center p-8 mt-12 ">
-            <div className="">
-
+        <div className="flex-grow flex flex-col items-center p-8  ">
+            {/*General Stats Container */}
+            <h2 className="text-3xl font-bold mb-4">Estadísticas generales</h2>
+            <div className="flex flex-col items-center w-full bg-neutral-200 border border-neutral-100 py-2 rounded-2xl">
+                <GeneralStats key={refreshTrigger} />
             </div>
+            <AdminTable onProductUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
         </div>
     );
 }
-
