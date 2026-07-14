@@ -67,6 +67,7 @@ export default function ProductCatalog() {
               marcas (nombre_marca),
               categorias (nombre_categoria)
             `)
+            .eq("visible_en_web", true)
             .range(pageNum * pageSize, (pageNum + 1) * pageSize - 1);
 
           if (fetchError) throw fetchError;

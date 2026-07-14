@@ -10,10 +10,10 @@ export default function Footer() {
                         Contacto
                     </h3>
                     <div className="mt-4 flex flex-col gap-3">
-                        <a 
-                            href="https://wa.me/525651824849" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
+                        <a
+                            href="https://wa.me/525651824849"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="flex items-center gap-3 text-neutral-400 hover:text-white transition-colors duration-300 group w-fit"
                         >
                             <div className="p-2 bg-neutral-900 rounded-lg group-hover:bg-green-600/20 group-hover:text-green-500 transition-colors duration-300">
@@ -21,8 +21,8 @@ export default function Footer() {
                             </div>
                             <span className="text-sm">+52 56 5182 4849</span>
                         </a>
-                        <a 
-                            href="mailto:autopartesgonni@gmail.com" 
+                        <a
+                            href="mailto:autopartesgonni@gmail.com"
                             className="flex items-center gap-3 text-neutral-400 hover:text-white transition-colors duration-300 group w-fit"
                         >
                             <div className="p-2 bg-neutral-900 rounded-lg group-hover:bg-red-600/20 group-hover:text-red-500 transition-colors duration-300">
@@ -71,42 +71,9 @@ export default function Footer() {
                                 <FaMapMarkerAlt size={16} />
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-xs text-neutral-300 font-bold uppercase">FOTON VILLAHERMOSA (GRUPO GRUMARMEX)</span>
-                                <span className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                                    AV. UNIVERSIDAD S/N, ESQ, Av de La Ceibas, Magisterial, 86040 Villahermosa, Tab.
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 text-neutral-400">
-                            <div className="shrink-0 p-2 bg-neutral-900 rounded-lg h-fit">
-                                <FaMapMarkerAlt size={16} />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-neutral-300 font-bold uppercase">FIAT CHRYSLER STELLANTIS (GRUPO GRUMARMEX)</span>
-                                <span className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                                    Libramiento Sur Poniente Km 0700 Tapachula, 30798 Córdoba, Chis.
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 text-neutral-400">
-                            <div className="shrink-0 p-2 bg-neutral-900 rounded-lg h-fit">
-                                <FaMapMarkerAlt size={16} />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-neutral-300 font-bold uppercase">GWM TLALNEPANTLA (GRUPO SATELITE)</span>
-                                <span className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                                    Av Mario Colin 320, Centro Industrial Tlalnepantla, 54030 Tlalnepantla, Méx
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 text-neutral-400">
-                            <div className="shrink-0 p-2 bg-neutral-900 rounded-lg h-fit">
-                                <FaMapMarkerAlt size={16} />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs text-neutral-300 font-bold uppercase">HERTZ AVASA</span>
-                                <span className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                                    AV. PRESIDENTE MAZARYK 61 302, POLANCO IV SECCION, 11550 Mexico, Ciudad de México.
+                                <span className="text-xs text-neutral-300 font-bold uppercase tracking-wider">Autopartes GONNI</span>
+                                <span className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                                    Calle 1er Retorno No. 6, Col. Acueducto Tenayuca, C.P. 54150, Tlalnepantla de Baz, Estado de México.
                                 </span>
                             </div>
                         </div>
