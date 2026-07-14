@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/utils/supabase";
+import { FaSearch, FaUndo } from "react-icons/fa";
+import SearchableSelect from "@/components/CatalogPage/SearchableSelect";
 
 export default function AdminTable({ onProductUpdate }) {
     const [products, setProducts] = useState([]);
@@ -11,6 +13,98 @@ export default function AdminTable({ onProductUpdate }) {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
+    // Filter states
+    const [selectedBrand, setSelectedBrand] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("");
+    const [selectedProvider, setSelectedProvider] = useState("");
+    const [enableYearRange, setEnableYearRange] = useState(false);
+    const [minYear, setMinYear] = useState(1990);
+    const [maxYear, setMaxYear] = useState(2026);
+    const [minLimitYear, setMinLimitYear] = useState(1990);
+    const [maxLimitYear, setMaxLimitYear] = useState(2026);
+
+    // Column visibility states
+    const [visibleColumns, setVisibleColumns] = useState({
+        id: true,
+        codigo_original: true,
+        codigo_proveedor: true,
+        descripcion: true,
+        modelo: true,
+        anios: true,
+        precio: true,
+        precio_proveedor: true,
+        marca: true,
+        categoria: true,
+        imagen: true,
+        proveedor: true,
+        visibilidad: true
+    });
+    const [isColDropdownOpen, setIsColDropdownOpen] = useState(false);
+    const colDropdownRef = useRef(null);
+
+    // Labels for display
+    const columnLabels = {
+        id: "ID",
+        codigo_original: "Código Orig.",
+        codigo_proveedor: "Código Prov.",
+        descripcion: "Descripción",
+        modelo: "Modelo",
+        anios: "Años (Inicio-Fin)",
+        precio: "Precio ($)",
+        precio_proveedor: "Precio Prov. ($)",
+        marca: "Marca",
+        categoria: "Categoría",
+        imagen: "Imagen",
+        proveedor: "Proveedor",
+        visibilidad: "Visibilidad"
+    };
+
+    const allSelectableColumns = [
+        "codigo_proveedor",
+        "descripcion",
+        "modelo",
+        "anios",
+        "precio",
+        "precio_proveedor",
+        "marca",
+        "categoria",
+        "imagen",
+        "proveedor",
+        "visibilidad"
+    ];
+
+    const isAllSelected = allSelectableColumns.every(col => visibleColumns[col]);
+
+    const toggleColumn = (colKey) => {
+        if (colKey === "id" || colKey === "codigo_original") return;
+        setVisibleColumns(prev => ({
+            ...prev,
+            [colKey]: !prev[colKey]
+        }));
+    };
+
+    const toggleSelectAll = () => {
+        const newValue = !isAllSelected;
+        setVisibleColumns(prev => {
+            const updated = { ...prev };
+            allSelectableColumns.forEach(col => {
+                updated[col] = newValue;
+            });
+            return updated;
+        });
+    };
+
+    // Close column dropdown on click outside
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (colDropdownRef.current && !colDropdownRef.current.contains(event.target)) {
+                setIsColDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     // Modal state
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,6 +112,11 @@ export default function AdminTable({ onProductUpdate }) {
     const [editVisibleEnWeb, setEditVisibleEnWeb] = useState(false);
     const [saving, setSaving] = useState(false);
     const [modalError, setModalError] = useState("");
+
+    // Deletion states
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deletePasswordInput, setDeletePasswordInput] = useState("");
+    const [deleteError, setDeleteError] = useState("");
 
     useEffect(() => {
         async function fetchAllProducts() {
@@ -66,6 +165,17 @@ export default function AdminTable({ onProductUpdate }) {
                 }
 
                 setProducts(allData);
+
+                // Calculate dynamic year limits based on loaded products
+                const startYears = allData.map((p) => p.anio_inicio).filter((y) => typeof y === "number" && y > 0);
+                const endYears = allData.map((p) => p.anio_final).filter((y) => typeof y === "number" && y > 0);
+                const calculatedMin = startYears.length > 0 ? Math.min(...startYears) : 1990;
+                const calculatedMax = endYears.length > 0 ? Math.max(...endYears) : 2026;
+
+                setMinLimitYear(calculatedMin);
+                setMaxLimitYear(calculatedMax);
+                setMinYear(calculatedMin);
+                setMaxYear(calculatedMax);
             } catch (err) {
                 console.error("Error loading products for admin table:", err);
                 setError("No se pudieron cargar los datos de los productos.");
@@ -77,31 +187,73 @@ export default function AdminTable({ onProductUpdate }) {
         fetchAllProducts();
     }, []);
 
+    // Unique lists of options from fetched products
+    const brands = useMemo(() => {
+        const list = products.map((p) => p.marcas?.nombre_marca).filter(Boolean);
+        return Array.from(new Set(list)).sort();
+    }, [products]);
+
+    const categories = useMemo(() => {
+        const list = products.map((p) => p.categorias?.nombre_categoria).filter(Boolean);
+        return Array.from(new Set(list)).sort();
+    }, [products]);
+
+    const providers = useMemo(() => {
+        const list = products.map((p) => p.proveedores?.nombre_proveedor).filter(Boolean);
+        return Array.from(new Set(list)).sort();
+    }, [products]);
+
     // Filter logic
     const filteredProducts = useMemo(() => {
-        if (!searchQuery.trim()) return products;
-        
-        const query = searchQuery.toLowerCase().trim();
         return products.filter((product) => {
-            const codeOrig = (product.codigo_original || "").toLowerCase();
-            const codeProv = (product.codigo_proveedor || "").toLowerCase();
-            const desc = (product.descripcion || "").toLowerCase();
-            const model = (product.modelo || "").toLowerCase();
-            const brand = (product.marcas?.nombre_marca || "").toLowerCase();
-            const cat = (product.categorias?.nombre_categoria || "").toLowerCase();
-            const prov = (product.proveedores?.nombre_proveedor || "").toLowerCase();
-
-            return (
-                codeOrig.includes(query) ||
-                codeProv.includes(query) ||
-                desc.includes(query) ||
-                model.includes(query) ||
-                brand.includes(query) ||
-                cat.includes(query) ||
-                prov.includes(query)
+            // Search query filter
+            const query = searchQuery.toLowerCase().trim();
+            const matchesSearch = query === "" || (
+                (product.codigo_original || "").toLowerCase().includes(query) ||
+                (product.codigo_proveedor || "").toLowerCase().includes(query) ||
+                (product.descripcion || "").toLowerCase().includes(query) ||
+                (product.modelo || "").toLowerCase().includes(query) ||
+                (product.marcas?.nombre_marca || "").toLowerCase().includes(query) ||
+                (product.categorias?.nombre_categoria || "").toLowerCase().includes(query) ||
+                (product.proveedores?.nombre_proveedor || "").toLowerCase().includes(query)
             );
+
+            // Brand filter
+            const matchesBrand = selectedBrand === "" || product.marcas?.nombre_marca === selectedBrand;
+
+            // Category filter
+            const matchesCategory = selectedCategory === "" || product.categorias?.nombre_categoria === selectedCategory;
+
+            // Provider filter
+            const matchesProvider = selectedProvider === "" || product.proveedores?.nombre_proveedor === selectedProvider;
+
+            // Year range filter
+            const matchesYear = !enableYearRange || (
+                (product.anio_inicio || 1990) <= maxYear && 
+                (product.anio_final || 2026) >= minYear
+            );
+
+            return matchesSearch && matchesBrand && matchesCategory && matchesProvider && matchesYear;
         });
-    }, [products, searchQuery]);
+    }, [products, searchQuery, selectedBrand, selectedCategory, selectedProvider, enableYearRange, minYear, maxYear]);
+
+    // Reset all filters
+    const resetFilters = () => {
+        setSearchQuery("");
+        setSelectedBrand("");
+        setSelectedCategory("");
+        setSelectedProvider("");
+        setEnableYearRange(false);
+        setMinYear(minLimitYear);
+        setMaxYear(maxLimitYear);
+        setCurrentPage(1);
+    };
+
+    // Range percentages for custom dual slider styling
+    const rangeSpan = maxLimitYear - minLimitYear;
+    const leftPercent = rangeSpan > 0 ? ((minYear - minLimitYear) / rangeSpan) * 100 : 0;
+    const rightPercent = rangeSpan > 0 ? 100 - (((maxYear - minLimitYear) / rangeSpan) * 100) : 0;
+    const midYearThreshold = minLimitYear + (rangeSpan / 2);
 
     // Pagination calculations
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
@@ -130,6 +282,9 @@ export default function AdminTable({ onProductUpdate }) {
     const handleCancel = () => {
         setIsModalOpen(false);
         setSelectedProduct(null);
+        setIsDeleting(false);
+        setDeletePasswordInput("");
+        setDeleteError("");
     };
 
     const handleSave = async (e) => {
@@ -181,6 +336,69 @@ export default function AdminTable({ onProductUpdate }) {
         }
     };
 
+    const handleConfirmDelete = async () => {
+        setDeleteError("");
+        const expectedPwd = process.env.NEXT_PUBLIC_DELETE_PWD || process.env.DELETE_PWD;
+        
+        if (!expectedPwd) {
+            setDeleteError("El código de eliminación (DELETE_PWD) no está configurado en el archivo .env.");
+            return;
+        }
+
+        if (deletePasswordInput !== expectedPwd) {
+            setDeleteError("Código de eliminación incorrecto.");
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            // 1. Delete product row from Database
+            const { error: delError } = await supabase
+                .from("productos")
+                .delete()
+                .eq("id", selectedProduct.id);
+
+            if (delError) throw delError;
+
+            // 2. If deletion succeeded and the product has an image, delete the image from Supabase Storage
+            if (selectedProduct.imagen) {
+                try {
+                    const marker = "/public/productos/";
+                    const index = selectedProduct.imagen.indexOf(marker);
+                    if (index !== -1) {
+                        const storagePath = selectedProduct.imagen.substring(index + marker.length);
+                        await supabase
+                            .storage
+                            .from("productos")
+                            .remove([storagePath]);
+                    }
+                } catch (storageErr) {
+                    console.warn("Could not delete image asset from storage:", storageErr);
+                }
+            }
+
+            // Remove locally from the list
+            setProducts((prevProducts) => prevProducts.filter((p) => p.id !== selectedProduct.id));
+
+            // Refetch or update stats
+            if (onProductUpdate) {
+                onProductUpdate();
+            }
+
+            // Close and reset
+            setIsModalOpen(false);
+            setSelectedProduct(null);
+            setIsDeleting(false);
+            setDeletePasswordInput("");
+        } catch (err) {
+            console.error("Error deleting product:", err);
+            setDeleteError(err.message || "Ocurrió un error al intentar eliminar el producto.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="w-full bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm flex flex-col items-center justify-center gap-3 mt-8">
@@ -199,7 +417,213 @@ export default function AdminTable({ onProductUpdate }) {
     }
 
     return (
-        <div className="w-full mt-8 px-4 md:px-8">
+        <div className="w-full mt-8 px-4 md:px-8 flex flex-col gap-6">
+            
+            {/* Admin Table Filters */}
+            <div className="flex flex-col gap-4 bg-white border border-neutral-200 p-5 rounded-2xl shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                    <h3 className="font-bold text-neutral-800 text-sm">Filtros de Búsqueda</h3>
+                    <div className="flex items-center gap-4 relative">
+                        {/* Column visibility dropdown */}
+                        <div ref={colDropdownRef} className="relative z-30">
+                            <button
+                                type="button"
+                                onClick={() => setIsColDropdownOpen(!isColDropdownOpen)}
+                                className="flex items-center gap-2 px-3 py-1.5 border border-neutral-300 rounded-xl text-xs font-semibold hover:bg-neutral-50 active:scale-95 transition duration-150 bg-white shadow-sm cursor-pointer"
+                            >
+                                <span>Mostrar Columnas</span>
+                                <svg
+                                    className={`w-3.5 h-3.5 transition-transform duration-200 ${isColDropdownOpen ? "rotate-180" : ""}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            {isColDropdownOpen && (
+                                <div className="absolute right-0 mt-2 w-64 bg-white border border-neutral-200 rounded-xl shadow-lg p-3 flex flex-col gap-2 select-none">
+                                    {/* Select All */}
+                                    <label className="flex items-center gap-2 pb-2 border-b border-neutral-100 cursor-pointer font-bold text-xs text-neutral-800">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAllSelected}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
+                                        />
+                                        <span>Seleccionar Todos</span>
+                                    </label>
+
+                                    {/* List of Columns */}
+                                    <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto scrollbar-thin">
+                                        {Object.keys(columnLabels).map((colKey) => {
+                                            const isMandatory = colKey === "id" || colKey === "codigo_original";
+                                            return (
+                                                <label
+                                                    key={colKey}
+                                                    className={`flex items-center gap-2 text-xs cursor-pointer py-0.5 text-neutral-700 ${
+                                                        isMandatory ? "opacity-60 cursor-not-allowed font-medium" : "hover:text-neutral-900"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={visibleColumns[colKey]}
+                                                        disabled={isMandatory}
+                                                        onChange={() => toggleColumn(colKey)}
+                                                        className="w-4 h-4 rounded border-neutral-300 text-black focus:ring-black cursor-pointer disabled:cursor-not-allowed accent-black"
+                                                    />
+                                                    <span>
+                                                        {columnLabels[colKey]} {isMandatory && <span className="text-[10px] text-neutral-400 font-normal">(Requerido)</span>}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {(searchQuery || selectedBrand || selectedCategory || selectedProvider || enableYearRange) && (
+                            <button
+                                onClick={resetFilters}
+                                className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-semibold cursor-pointer transition"
+                            >
+                                <FaUndo size={10} />
+                                Limpiar Filtros
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Grid for Filters */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                    
+                    {/* Search Input */}
+                    <div className="relative">
+                        <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
+                        <input
+                            type="text"
+                            placeholder="Buscar por código, modelo, descripción..."
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-neutral-200 bg-white shadow-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition text-sm text-neutral-800"
+                        />
+                    </div>
+
+                    {/* Brand Select */}
+                    <div>
+                        <SearchableSelect
+                            value={selectedBrand}
+                            onChange={(val) => {
+                                setSelectedBrand(val);
+                                setCurrentPage(1);
+                            }}
+                            options={brands}
+                            placeholder="Todas las marcas"
+                            emptyMessage="No se encontraron marcas"
+                        />
+                    </div>
+
+                    {/* Category Select */}
+                    <div>
+                        <SearchableSelect
+                            value={selectedCategory}
+                            onChange={(val) => {
+                                setSelectedCategory(val);
+                                setCurrentPage(1);
+                            }}
+                            options={categories}
+                            placeholder="Todas las categorías"
+                            emptyMessage="No se encontraron categorías"
+                        />
+                    </div>
+
+                    {/* Provider Select */}
+                    <div>
+                        <SearchableSelect
+                            value={selectedProvider}
+                            onChange={(val) => {
+                                setSelectedProvider(val);
+                                setCurrentPage(1);
+                            }}
+                            options={providers}
+                            placeholder="Todos los proveedores"
+                            emptyMessage="No se encontraron proveedores"
+                        />
+                    </div>
+
+                </div>
+
+                {/* Year Range Slider Row */}
+                <div className="border-t border-neutral-100 pt-3 flex flex-col md:flex-row md:items-center gap-6 w-full">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-neutral-700 select-none shrink-0">
+                        <input
+                            type="checkbox"
+                            checked={enableYearRange}
+                            onChange={(e) => {
+                                setEnableYearRange(e.target.checked);
+                                setCurrentPage(1);
+                            }}
+                            className="w-4.5 h-4.5 text-black border-neutral-300 rounded focus:ring-black cursor-pointer accent-black"
+                        />
+                        <span>Filtrar por rango de años</span>
+                    </label>
+
+                    {enableYearRange && (
+                        <div className="flex-1 flex items-center w-full select-none">
+                            <span className="text-black/95 text-xs font-black rounded-xl shrink-0 min-w-[50px] text-center">
+                                {minYear}
+                            </span>
+
+                            <div className="relative flex-1 flex items-center h-6 mx-2">
+                                <div className="absolute left-0 right-0 h-1 bg-neutral-200 rounded-full" />
+                                <div
+                                    className="absolute h-1 bg-black rounded-full"
+                                    style={{
+                                        left: `${leftPercent}%`,
+                                        right: `${rightPercent}%`
+                                    }}
+                                />
+                                <input
+                                    type="range"
+                                    min={minLimitYear}
+                                    max={maxLimitYear}
+                                    value={minYear}
+                                    onChange={(e) => {
+                                        const val = Math.min(parseInt(e.target.value), maxYear);
+                                        setMinYear(val);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="absolute pointer-events-none appearance-none w-full bg-transparent h-1 outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:pointer-events-auto cursor-pointer"
+                                    style={{ zIndex: minYear > midYearThreshold ? 12 : 11 }}
+                                />
+                                <input
+                                    type="range"
+                                    min={minLimitYear}
+                                    max={maxLimitYear}
+                                    value={maxYear}
+                                    onChange={(e) => {
+                                        const val = Math.max(parseInt(e.target.value), minYear);
+                                        setMaxYear(val);
+                                        setCurrentPage(1);
+                                    }}
+                                    className="absolute pointer-events-none appearance-none w-full bg-transparent h-1 outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-black [&::-moz-range-thumb]:pointer-events-auto cursor-pointer"
+                                    style={{ zIndex: 10 }}
+                                />
+                            </div>
+
+                            <span className="text-black/95 text-xs font-black rounded-xl shrink-0 min-w-[50px] text-center">
+                                {maxYear}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <div className="w-full bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden flex flex-col">
 
                 {/* Table wrapper */}
@@ -207,18 +631,19 @@ export default function AdminTable({ onProductUpdate }) {
                     <table className="w-full text-left border-collapse min-w-[1200px]">
                         <thead>
                             <tr className="bg-black border-b border-neutral-200 text-white uppercase tracking-wider text-xs font-semibold text-center">
-                                <th className="px-4 py-4.5">ID</th>
-                                <th className="px-4 py-4.5">Código Orig.</th>
-                                <th className="px-4 py-4.5">Código Prov.</th>
-                                <th className="px-4 py-4.5">Descripción</th>
-                                <th className="px-4 py-4.5">Modelo</th>
-                                <th className="px-4 py-4.5">Años (Inicio-Fin)</th>
-                                <th className="px-4 py-4.5">Precio ($)</th>
-                                <th className="px-4 py-4.5">Precio Prov. ($)</th>
-                                <th className="px-4 py-4.5">Marca</th>
-                                <th className="px-4 py-4.5">Categoría</th>
-                                <th className="px-4 py-4.5">Proveedor</th>
-                                <th className="px-4 py-4.5">Visibilidad</th>
+                                {visibleColumns.id && <th className="px-4 py-4.5">ID</th>}
+                                {visibleColumns.codigo_original && <th className="px-4 py-4.5">Código Orig.</th>}
+                                {visibleColumns.codigo_proveedor && <th className="px-4 py-4.5">Código Prov.</th>}
+                                {visibleColumns.descripcion && <th className="px-4 py-4.5">Descripción</th>}
+                                {visibleColumns.modelo && <th className="px-4 py-4.5">Modelo</th>}
+                                {visibleColumns.anios && <th className="px-4 py-4.5">Años (Inicio-Fin)</th>}
+                                {visibleColumns.precio && <th className="px-4 py-4.5">Precio ($)</th>}
+                                {visibleColumns.precio_proveedor && <th className="px-4 py-4.5">Precio Prov. ($)</th>}
+                                {visibleColumns.marca && <th className="px-4 py-4.5">Marca</th>}
+                                {visibleColumns.categoria && <th className="px-4 py-4.5">Categoría</th>}
+                                {visibleColumns.imagen && <th className="px-4 py-4.5">Imagen</th>}
+                                {visibleColumns.proveedor && <th className="px-4 py-4.5">Proveedor</th>}
+                                {visibleColumns.visibilidad && <th className="px-4 py-4.5">Visibilidad</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-200 text-neutral-700 text-xs text-center">
@@ -230,58 +655,95 @@ export default function AdminTable({ onProductUpdate }) {
                                         className="hover:bg-neutral-50/50 transition-colors cursor-pointer"
                                         title="Haz clic para ver todos los campos y editar"
                                     >
-                                        <td className="px-4 py-4 font-mono text-neutral-400">{product.id}</td>
-                                        <td className="px-4 py-4 font-mono font-bold text-neutral-900">
-                                            {product.codigo_original || "-"}
-                                        </td>
-                                        <td className="px-4 py-4 font-mono text-neutral-500">
-                                            {product.codigo_proveedor || "-"}
-                                        </td>
-                                        <td className="px-4 py-4 text-left max-w-[200px] truncate font-medium text-neutral-800" title={product.descripcion}>
-                                            {product.descripcion || "-"}
-                                        </td>
-                                        <td className="px-4 py-4 font-semibold text-neutral-900">{product.modelo || "-"}</td>
-                                        <td className="px-4 py-4">
-                                            {product.anio_inicio && product.anio_final
-                                                ? `${product.anio_inicio} - ${product.anio_final}`
-                                                : `${product.anio_inicio || "-"} / ${product.anio_final || "-"}`
-                                            }
-                                        </td>
-                                        <td className="px-4 py-4 font-bold text-neutral-900">
-                                            {product.precio != null ? `$${product.precio.toFixed(2)}` : "-"}
-                                        </td>
-                                        <td className="px-4 py-4 text-neutral-500 font-medium">
-                                            {product.precio_proveedor != null ? `$${product.precio_proveedor.toFixed(2)}` : "-"}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <span className="inline-block px-2 py-1 rounded bg-neutral-100 text-neutral-700 border border-neutral-200 text-[10px] font-bold">
-                                                {product.marcas?.nombre_marca || `ID: ${product.id_marca}`}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            <span className="inline-block px-2 py-1 rounded bg-neutral-900 text-white text-[10px] font-bold">
-                                                {product.categorias?.nombre_categoria || `ID: ${product.id_categoria}`}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-4 font-medium text-neutral-800">
-                                            {product.proveedores?.nombre_proveedor || `ID: ${product.id_proveedor}`}
-                                        </td>
-                                        <td className="px-4 py-4">
-                                            {product.visible_en_web ? (
-                                                <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                                                    Sí
+                                        {visibleColumns.id && (
+                                            <td className="px-4 py-4 font-mono text-neutral-400">{product.id}</td>
+                                        )}
+                                        {visibleColumns.codigo_original && (
+                                            <td className="px-4 py-4 font-mono font-bold text-neutral-900">
+                                                {product.codigo_original || "-"}
+                                            </td>
+                                        )}
+                                        {visibleColumns.codigo_proveedor && (
+                                            <td className="px-4 py-4 font-mono text-neutral-500">
+                                                {product.codigo_proveedor || "-"}
+                                            </td>
+                                        )}
+                                        {visibleColumns.descripcion && (
+                                            <td className="px-4 py-4 text-left max-w-[200px] truncate font-medium text-neutral-800" title={product.descripcion}>
+                                                {product.descripcion || "-"}
+                                            </td>
+                                        )}
+                                        {visibleColumns.modelo && (
+                                            <td className="px-4 py-4 font-semibold text-neutral-900">{product.modelo || "-"}</td>
+                                        )}
+                                        {visibleColumns.anios && (
+                                            <td className="px-4 py-4">
+                                                {product.anio_inicio && product.anio_final
+                                                    ? `${product.anio_inicio} - ${product.anio_final}`
+                                                    : `${product.anio_inicio || "-"} / ${product.anio_final || "-"}`
+                                                }
+                                            </td>
+                                        )}
+                                        {visibleColumns.precio && (
+                                            <td className="px-4 py-4 font-bold text-neutral-900">
+                                                {product.precio != null ? `$${product.precio.toFixed(2)}` : "-"}
+                                            </td>
+                                        )}
+                                        {visibleColumns.precio_proveedor && (
+                                            <td className="px-4 py-4 text-neutral-500 font-medium">
+                                                {product.precio_proveedor != null ? `$${product.precio_proveedor.toFixed(2)}` : "-"}
+                                            </td>
+                                        )}
+                                        {visibleColumns.marca && (
+                                            <td className="px-4 py-4">
+                                                <span className="inline-block px-2 py-1 rounded bg-neutral-100 text-neutral-700 border border-neutral-200 text-[10px] font-bold">
+                                                    {product.marcas?.nombre_marca || `ID: ${product.id_marca}`}
                                                 </span>
-                                            ) : (
-                                                <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold border border-red-200">
-                                                    No
+                                            </td>
+                                        )}
+                                        {visibleColumns.categoria && (
+                                            <td className="px-4 py-4">
+                                                <span className="inline-block px-2 py-1 rounded bg-neutral-900 text-white text-[10px] font-bold">
+                                                    {product.categorias?.nombre_categoria || `ID: ${product.id_categoria}`}
                                                 </span>
-                                            )}
-                                        </td>
+                                            </td>
+                                        )}
+                                        {visibleColumns.imagen && (
+                                            <td className="px-4 py-4">
+                                                {product.imagen ? (
+                                                    <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                                                        Sí
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold border border-red-200">
+                                                        No
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
+                                        {visibleColumns.proveedor && (
+                                            <td className="px-4 py-4 font-medium text-neutral-800">
+                                                {product.proveedores?.nombre_proveedor || `ID: ${product.id_proveedor}`}
+                                            </td>
+                                        )}
+                                        {visibleColumns.visibilidad && (
+                                            <td className="px-4 py-4">
+                                                {product.visible_en_web ? (
+                                                    <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                                                        Sí
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold border border-red-200">
+                                                        No
+                                                    </span>
+                                                )}
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="12" className="px-4 py-8 text-neutral-500 text-center font-medium">
+                                    <td colSpan={Object.values(visibleColumns).filter(Boolean).length} className="px-4 py-8 text-neutral-500 text-center font-medium">
                                         No se encontraron autopartes.
                                     </td>
                                 </tr>
@@ -325,7 +787,7 @@ export default function AdminTable({ onProductUpdate }) {
             {/* Modal Overlay */}
             {isModalOpen && selectedProduct && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-8 border border-neutral-200">
+                    <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden my-8 border border-neutral-200">
                         {/* Modal Header */}
                         <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
                             <h4 className="text-lg font-bold">Detalle y Edición de Producto</h4>
@@ -346,112 +808,199 @@ export default function AdminTable({ onProductUpdate }) {
                                 </div>
                             )}
                             
-                            {/* Columns Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Read-only fields */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">ID</span>
-                                    <input type="text" readOnly value={selectedProduct.id} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Código Original</span>
-                                    <input type="text" readOnly value={selectedProduct.codigo_original || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Código Proveedor</span>
-                                    <input type="text" readOnly value={selectedProduct.codigo_proveedor || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Modelo</span>
-                                    <input type="text" readOnly value={selectedProduct.modelo || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Año Inicio</span>
-                                    <input type="text" readOnly value={selectedProduct.anio_inicio || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Año Fin</span>
-                                    <input type="text" readOnly value={selectedProduct.anio_final || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Marca</span>
-                                    <input type="text" readOnly value={selectedProduct.marcas?.nombre_marca || `ID: ${selectedProduct.id_marca}`} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Categoría</span>
-                                    <input type="text" readOnly value={selectedProduct.categorias?.nombre_categoria || `ID: ${selectedProduct.id_categoria}`} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Proveedor</span>
-                                    <input type="text" readOnly value={selectedProduct.proveedores?.nombre_proveedor || `ID: ${selectedProduct.id_proveedor}`} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Precio Proveedor ($)</span>
-                                    <input type="text" readOnly value={selectedProduct.precio_proveedor != null ? `$${selectedProduct.precio_proveedor.toFixed(2)}` : "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Creado En</span>
-                                    <input type="text" readOnly value={selectedProduct.creado_en ? new Date(selectedProduct.creado_en).toLocaleString() : "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Actualizado En</span>
-                                    <input type="text" readOnly value={selectedProduct.actualizado_en ? new Date(selectedProduct.actualizado_en).toLocaleString() : "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Imagen (Ruta)</span>
-                                    <input type="text" readOnly value={selectedProduct.imagen || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">ID Proveedor</span>
-                                    <input type="text" readOnly value={selectedProduct.id_proveedor || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
-                                </div>
-                                <div className="md:col-span-2 flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Descripción</span>
-                                    <textarea readOnly rows={2} value={selectedProduct.descripcion || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none resize-none cursor-not-allowed" />
-                                </div>
-                                
-                                {/* Editable Fields */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-[10px] font-bold text-black uppercase tracking-wide">Precio Público ($) *</span>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        value={editPrecio}
-                                        onChange={(e) => setEditPrecio(e.target.value)}
-                                        className="border border-neutral-300 rounded-lg px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
-                                    />
-                                </div>
-                                
-                                <div className="flex flex-col justify-end pb-1.5 pl-1">
-                                    <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
+                            <div className="flex flex-col md:flex-row gap-6">
+                                {/* Columns Grid */}
+                                <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {/* Read-only fields */}
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">ID</span>
+                                        <input type="text" readOnly value={selectedProduct.id} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Código Original</span>
+                                        <input type="text" readOnly value={selectedProduct.codigo_original || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Código Proveedor</span>
+                                        <input type="text" readOnly value={selectedProduct.codigo_proveedor || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Modelo</span>
+                                        <input type="text" readOnly value={selectedProduct.modelo || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Año Inicio</span>
+                                        <input type="text" readOnly value={selectedProduct.anio_inicio || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Año Fin</span>
+                                        <input type="text" readOnly value={selectedProduct.anio_final || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Marca</span>
+                                        <input type="text" readOnly value={selectedProduct.marcas?.nombre_marca || `ID: ${selectedProduct.id_marca}`} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Categoría</span>
+                                        <input type="text" readOnly value={selectedProduct.categorias?.nombre_categoria || `ID: ${selectedProduct.id_categoria}`} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Proveedor</span>
+                                        <input type="text" readOnly value={selectedProduct.proveedores?.nombre_proveedor || `ID: ${selectedProduct.id_proveedor}`} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Precio Proveedor ($)</span>
+                                        <input type="text" readOnly value={selectedProduct.precio_proveedor != null ? `$${selectedProduct.precio_proveedor.toFixed(2)}` : "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Creado En</span>
+                                        <input type="text" readOnly value={selectedProduct.creado_en ? new Date(selectedProduct.creado_en).toLocaleString() : "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Actualizado En</span>
+                                        <input type="text" readOnly value={selectedProduct.actualizado_en ? new Date(selectedProduct.actualizado_en).toLocaleString() : "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Imagen (Ruta)</span>
+                                        <input type="text" readOnly value={selectedProduct.imagen || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">ID Proveedor</span>
+                                        <input type="text" readOnly value={selectedProduct.id_proveedor || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none cursor-not-allowed" />
+                                    </div>
+                                    <div className="sm:col-span-2 flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Descripción</span>
+                                        <textarea readOnly rows={2} value={selectedProduct.descripcion || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none resize-none cursor-not-allowed" />
+                                    </div>
+                                    
+                                    {/* Editable Fields */}
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-bold text-black uppercase tracking-wide">Precio Público ($) *</span>
                                         <input 
-                                            type="checkbox"
-                                            checked={editVisibleEnWeb}
-                                            onChange={(e) => setEditVisibleEnWeb(e.target.checked)}
-                                            className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer"
+                                            type="text" 
+                                            required
+                                            value={editPrecio}
+                                            onChange={(e) => setEditPrecio(e.target.value)}
+                                            className="border border-neutral-300 rounded-lg px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         />
-                                        <span>Visible en la Web (Visibilidad)</span>
-                                    </label>
+                                    </div>
+                                    
+                                    <div className="flex flex-col justify-end pb-1.5 pl-1">
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
+                                            <input 
+                                                type="checkbox"
+                                                checked={editVisibleEnWeb}
+                                                onChange={(e) => setEditVisibleEnWeb(e.target.checked)}
+                                                className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer"
+                                            />
+                                            <span>Visible en la Web (Visibilidad)</span>
+                                        </label>
+                                    </div>
                                 </div>
+
+                                {/* Right column: Image (only if exists) */}
+                                {selectedProduct.imagen && (
+                                    <div className="flex flex-col gap-2 shrink-0 self-start md:w-56">
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Imagen del Producto</span>
+                                        <div className="border border-neutral-200 rounded-2xl overflow-hidden bg-neutral-50 flex items-center justify-center p-2 h-56 w-56 shadow-sm">
+                                            <a 
+                                                href={selectedProduct.imagen}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="h-full w-full flex items-center justify-center cursor-zoom-in"
+                                                title="Ver imagen completa"
+                                            >
+                                                <img 
+                                                    src={selectedProduct.imagen} 
+                                                    alt={selectedProduct.modelo || "Producto"} 
+                                                    className="h-full w-full object-contain rounded-xl hover:scale-105 transition duration-300"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = "https://placehold.co/250?text=Sin+Imagen";
+                                                    }}
+                                                />
+                                            </a>
+                                        </div>
+                                        <span className="text-[9px] text-neutral-400 text-center">Haz clic para ver tamaño completo</span>
+                                    </div>
+                                )}
                             </div>
 
+                            {isDeleting && (
+                                <div className="flex flex-col gap-2 p-4 bg-red-50 border border-red-200 rounded-2xl animate-fadeIn mt-2 text-left">
+                                    <p className="text-sm font-bold text-red-800">¿Estás seguro de que deseas eliminar este producto permanentemente?</p>
+                                    <p className="text-xs text-neutral-600">Por favor, ingresa el código de eliminación para confirmar:</p>
+                                    <div className="flex flex-col sm:flex-row gap-2 mt-1">
+                                        <input 
+                                            type="password"
+                                            placeholder="Código de eliminación"
+                                            value={deletePasswordInput}
+                                            onChange={(e) => setDeletePasswordInput(e.target.value)}
+                                            className="flex-grow border border-red-300 rounded-xl px-3 py-2 text-sm bg-white text-neutral-900 focus:outline-none focus:ring-1 focus:ring-red-500"
+                                            disabled={saving}
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleConfirmDelete}
+                                                disabled={saving || !deletePasswordInput}
+                                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition active:scale-95 disabled:opacity-55 disabled:active:scale-100 cursor-pointer"
+                                            >
+                                                {saving ? "Eliminando..." : "Confirmar"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsDeleting(false);
+                                                    setDeletePasswordInput("");
+                                                    setDeleteError("");
+                                                }}
+                                                disabled={saving}
+                                                className="px-4 py-2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {deleteError && (
+                                        <p className="text-xs font-bold text-red-600 mt-1 animate-fadeIn">
+                                            {deleteError}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Modal Actions */}
-                            <div className="flex justify-end gap-3 border-t border-neutral-100 pt-4 mt-2">
-                                <button
-                                    type="button"
-                                    onClick={handleCancel}
-                                    disabled={saving}
-                                    className="px-4 py-2 border border-neutral-300 rounded-xl text-sm font-semibold hover:bg-neutral-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150 cursor-pointer bg-white"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={saving}
-                                    className="px-4 py-2 bg-black hover:bg-neutral-800 text-white rounded-xl text-sm font-semibold active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 cursor-pointer flex items-center gap-2"
-                                >
-                                    {saving ? "Guardando..." : "Guardar Cambios"}
-                                </button>
+                            <div className="flex justify-between items-center gap-3 border-t border-neutral-100 pt-4 mt-2">
+                                <div>
+                                    {!isDeleting && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDeleting(true)}
+                                            disabled={saving}
+                                            className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-sm font-semibold active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150 cursor-pointer"
+                                        >
+                                            Eliminar Producto
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleCancel}
+                                        disabled={saving}
+                                        className="px-4 py-2 border border-neutral-300 rounded-xl text-sm font-semibold hover:bg-neutral-50 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition duration-150 cursor-pointer bg-white"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={saving}
+                                        className="px-4 py-2 bg-black hover:bg-neutral-800 text-white rounded-xl text-sm font-semibold active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 cursor-pointer flex items-center gap-2"
+                                    >
+                                        {saving ? "Guardando..." : "Guardar Cambios"}
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>

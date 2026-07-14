@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
 import GeneralStats from "@/components/AdminPanelPage/GeneralStats";
 import AdminTable from "@/components/AdminPanelPage/AdminTable";
+import ProvidersTable from "@/components/AdminPanelPage/ProvidersTable";
+import AddProductForm from "@/components/AdminPanelPage/AddProductForm";
 
 export default function PanelAdminPage() {
     const router = useRouter();
@@ -57,13 +59,23 @@ export default function PanelAdminPage() {
     }
 
     return (
-        <div className="flex-grow flex flex-col items-center p-8  ">
+        <div className="flex-grow flex flex-col items-center p-8">
             {/*General Stats Container */}
-            <h2 className="text-3xl font-bold mb-4">Estadísticas generales</h2>
-            <div className="flex flex-col items-center w-full bg-neutral-200 border border-neutral-100 py-2 rounded-2xl">
-                <GeneralStats key={refreshTrigger} />
+            <div className="w-full px-4 md:px-8 flex flex-col gap-4">
+                <h2 className="text-3xl font-bold">Estadísticas generales</h2>
+                <div className="w-full p-2">
+                    <GeneralStats key={refreshTrigger} />
+                </div>
             </div>
             <AdminTable onProductUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
+            <div className="w-full px-4 md:px-8 mt-6">
+                <AddProductForm onProductAdded={() => setRefreshTrigger((prev) => prev + 1)} />
+            </div>
+            <div className="w-full px-4 md:px-8 flex flex-col gap-4 mt-6">
+                <h2 className="text-3xl font-bold text-left w-full">Proveedores</h2>
+                <ProvidersTable key={refreshTrigger} />
+            </div>
+
         </div>
     );
 }
