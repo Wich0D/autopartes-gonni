@@ -17,20 +17,29 @@ export default function AddProductForm({ onProductAdded }) {
     const [idCategoria, setIdCategoria] = useState("");
     const [idProveedor, setIdProveedor] = useState("");
     const [visibleEnWeb, setVisibleEnWeb] = useState(true);
+    const [aplicarIva, setAplicarIva] = useState(false);
 
     // Collapsible states
     const [isOpen, setIsOpen] = useState(false);
 
-    // Dynamic price calculation markup (+20%)
+    // Dynamic price calculation markup (190% of base, with optional 16% IVA first)
+    const calculatePublicPrice = (provPrice, useIva) => {
+        const parsed = parseFloat(provPrice);
+        if (!isNaN(parsed) && parsed > 0) {
+            const basePrice = useIva ? parsed * 1.16 : parsed;
+            return (basePrice * 1.90).toFixed(2);
+        }
+        return "";
+    };
+
     const handlePrecioProveedorChange = (val) => {
         setPrecioProveedor(val);
-        const parsed = parseFloat(val);
-        if (!isNaN(parsed) && parsed > 0) {
-            const calculatedMarkup = (parsed * 1.20).toFixed(2);
-            setPrecio(calculatedMarkup);
-        } else {
-            setPrecio("");
-        }
+        setPrecio(calculatePublicPrice(val, aplicarIva));
+    };
+
+    const handleAplicarIvaChange = (checked) => {
+        setAplicarIva(checked);
+        setPrecio(calculatePublicPrice(precioProveedor, checked));
     };
 
     // Dropdown list data
@@ -214,6 +223,7 @@ export default function AddProductForm({ onProductAdded }) {
             setIdCategoria("");
             setIdProveedor("");
             setVisibleEnWeb(true);
+            setAplicarIva(false);
             removeFile();
 
             // Refresh parent statistics/tables
@@ -409,6 +419,19 @@ export default function AddProductForm({ onProductAdded }) {
                                 placeholder="Ej: 240.00"
                                 className="border border-neutral-300 rounded-xl px-4 py-2.5 text-sm text-neutral-900 focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition bg-white"
                             />
+                        </div>
+
+                        {/* Aplicar IVA Checkbox */}
+                        <div className="flex flex-col justify-end pb-3 pl-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
+                                <input 
+                                    type="checkbox"
+                                    checked={aplicarIva}
+                                    onChange={(e) => handleAplicarIvaChange(e.target.checked)}
+                                    className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
+                                />
+                                <span>Aplicar IVA (16%)</span>
+                            </label>
                         </div>
 
                         {/* Visibilidad Checkbox */}

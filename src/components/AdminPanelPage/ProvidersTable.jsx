@@ -1,61 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/utils/supabase";
 import { FaExternalLinkAlt } from "react-icons/fa";
 
-export default function ProvidersTable() {
-    const [providers, setProviders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        async function fetchProvidersData() {
-            try {
-                setLoading(true);
-                
-                // 1. Fetch all providers
-                const { data: provData, error: provError } = await supabase
-                    .from("proveedores")
-                    .select("id, nombre_proveedor, sitio_web")
-                    .order("nombre_proveedor", { ascending: true });
-
-                if (provError) throw provError;
-
-                // 2. Fetch all products to count occurrences of each supplier locally (failsafe & fast)
-                const { data: countData, error: countError } = await supabase
-                    .from("productos")
-                    .select("id_proveedor");
-
-                if (countError) throw countError;
-
-                // Count items per provider id
-                const countsMap = {};
-                (countData || []).forEach((p) => {
-                    const id = p.id_proveedor;
-                    if (id != null) {
-                        countsMap[id] = (countsMap[id] || 0) + 1;
-                    }
-                });
-
-                // Merge counts with providers
-                const combined = (provData || []).map((prov) => ({
-                    ...prov,
-                    productCount: countsMap[prov.id] || 0
-                }));
-
-                setProviders(combined);
-            } catch (err) {
-                console.error("Error loading providers table:", err);
-                setError("No se pudieron cargar los datos de los proveedores.");
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchProvidersData();
-    }, []);
-
+export default function ProvidersTable({ providers, loading, error }) {
     if (loading) {
         return (
             <div className="w-full bg-white rounded-2xl border border-neutral-200 p-8 shadow-sm flex flex-col items-center justify-center gap-3">

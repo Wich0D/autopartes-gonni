@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/utils/supabase";
-import { FaSearch, FaUndo } from "react-icons/fa";
+import { FaSearch, FaUndo, FaChevronDown } from "react-icons/fa";
 import SearchableSelect from "@/components/CatalogPage/SearchableSelect";
 
 export default function AdminTable({ onProductUpdate }) {
@@ -17,6 +17,8 @@ export default function AdminTable({ onProductUpdate }) {
     const [selectedBrand, setSelectedBrand] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("");
     const [selectedProvider, setSelectedProvider] = useState("");
+    const [selectedVisibility, setSelectedVisibility] = useState("");
+    const [selectedImageStatus, setSelectedImageStatus] = useState("");
     const [enableYearRange, setEnableYearRange] = useState(false);
     const [minYear, setMinYear] = useState(1990);
     const [maxYear, setMaxYear] = useState(2026);
@@ -110,8 +112,15 @@ export default function AdminTable({ onProductUpdate }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editPrecio, setEditPrecio] = useState("");
     const [editVisibleEnWeb, setEditVisibleEnWeb] = useState(false);
+    const [editAplicarIva, setEditAplicarIva] = useState(false);
     const [saving, setSaving] = useState(false);
     const [modalError, setModalError] = useState("");
+
+    // Drag and Drop states
+    const [dragActive, setDragActive] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const fileInputRef = useRef(null);
 
     // Deletion states
     const [isDeleting, setIsDeleting] = useState(false);
@@ -229,13 +238,29 @@ export default function AdminTable({ onProductUpdate }) {
 
             // Year range filter
             const matchesYear = !enableYearRange || (
-                (product.anio_inicio || 1990) <= maxYear && 
+                (product.anio_inicio || 1990) <= maxYear &&
                 (product.anio_final || 2026) >= minYear
             );
 
-            return matchesSearch && matchesBrand && matchesCategory && matchesProvider && matchesYear;
+            // Visibility filter
+            let matchesVisibility = true;
+            if (selectedVisibility === "visible") {
+                matchesVisibility = product.visible_en_web === true;
+            } else if (selectedVisibility === "oculto") {
+                matchesVisibility = product.visible_en_web === false;
+            }
+
+            // Image status filter
+            let matchesImageStatus = true;
+            if (selectedImageStatus === "con_imagen") {
+                matchesImageStatus = !!product.imagen;
+            } else if (selectedImageStatus === "sin_imagen") {
+                matchesImageStatus = !product.imagen;
+            }
+
+            return matchesSearch && matchesBrand && matchesCategory && matchesProvider && matchesYear && matchesVisibility && matchesImageStatus;
         });
-    }, [products, searchQuery, selectedBrand, selectedCategory, selectedProvider, enableYearRange, minYear, maxYear]);
+    }, [products, searchQuery, selectedBrand, selectedCategory, selectedProvider, enableYearRange, minYear, maxYear, selectedVisibility, selectedImageStatus]);
 
     // Reset all filters
     const resetFilters = () => {
@@ -243,6 +268,8 @@ export default function AdminTable({ onProductUpdate }) {
         setSelectedBrand("");
         setSelectedCategory("");
         setSelectedProvider("");
+        setSelectedVisibility("");
+        setSelectedImageStatus("");
         setEnableYearRange(false);
         setMinYear(minLimitYear);
         setMaxYear(maxLimitYear);
@@ -270,12 +297,82 @@ export default function AdminTable({ onProductUpdate }) {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
+    // Drag handlers
+    const handleDrag = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            processFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            processFile(e.target.files[0]);
+        }
+    };
+
+    const processFile = (file) => {
+        if (!file.type.startsWith("image/")) {
+            alert("Por favor, selecciona un archivo de imagen válido (JPEG, PNG, WEBP).");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert("El archivo de imagen excede el límite de 5MB.");
+            return;
+        }
+        setSelectedFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeFile = () => {
+        setSelectedFile(null);
+        setImagePreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+
     // Modal handlers
+    const calculatePublicPrice = (provPrice, useIva) => {
+        const parsed = parseFloat(provPrice);
+        if (!isNaN(parsed) && parsed > 0) {
+            const basePrice = useIva ? parsed * 1.16 : parsed;
+            return (basePrice * 1.90).toFixed(2);
+        }
+        return "";
+    };
+
+    const handleEditAplicarIvaChange = (checked) => {
+        setEditAplicarIva(checked);
+        if (selectedProduct && selectedProduct.precio_proveedor != null) {
+            setEditPrecio(calculatePublicPrice(selectedProduct.precio_proveedor, checked));
+        }
+    };
+
     const handleRowClick = (product) => {
         setSelectedProduct(product);
         setEditPrecio(product.precio != null ? product.precio.toString() : "");
         setEditVisibleEnWeb(!!product.visible_en_web);
+        setEditAplicarIva(false);
         setModalError("");
+        setSelectedFile(null);
+        setImagePreview(null);
         setIsModalOpen(true);
     };
 
@@ -285,6 +382,9 @@ export default function AdminTable({ onProductUpdate }) {
         setIsDeleting(false);
         setDeletePasswordInput("");
         setDeleteError("");
+        setSelectedFile(null);
+        setImagePreview(null);
+        setEditAplicarIva(false);
     };
 
     const handleSave = async (e) => {
@@ -297,11 +397,60 @@ export default function AdminTable({ onProductUpdate }) {
                 throw new Error("El precio debe ser un número válido.");
             }
 
+            let imageUrl = selectedProduct.imagen;
+
+            // 1. Upload image to Supabase Storage if selected
+            if (selectedFile) {
+                const fileExt = selectedFile.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+                const filePath = `products/${fileName}`;
+
+                const { data: uploadData, error: uploadError } = await supabase
+                    .storage
+                    .from("productos")
+                    .upload(filePath, selectedFile);
+
+                if (uploadError) {
+                    console.error("Storage upload error:", uploadError);
+                    throw new Error(
+                        `Error al subir la imagen: ${uploadError.message}. \n` +
+                        `Asegúrate de haber creado el bucket 'productos' en Supabase y que sus políticas RLS permitan subidas públicas.`
+                    );
+                }
+
+                // Get public URL of the uploaded image
+                const { data: { publicUrl } } = supabase
+                    .storage
+                    .from("productos")
+                    .getPublicUrl(filePath);
+
+                // If upload succeeded and product had an old image, delete the old image from Supabase Storage
+                if (selectedProduct.imagen) {
+                    try {
+                        const marker = "/public/productos/";
+                        const index = selectedProduct.imagen.indexOf(marker);
+                        if (index !== -1) {
+                            const storagePath = selectedProduct.imagen.substring(index + marker.length);
+                            await supabase
+                                .storage
+                                .from("productos")
+                                .remove([storagePath]);
+                        }
+                    } catch (storageErr) {
+                        console.warn("Could not delete old image asset from storage:", storageErr);
+                    }
+                }
+
+                imageUrl = publicUrl;
+            }
+
+            // 2. Update DB record
             const { error: updateError } = await supabase
                 .from("productos")
                 .update({
                     precio: parsedPrice,
-                    visible_en_web: editVisibleEnWeb
+                    visible_en_web: editVisibleEnWeb,
+                    imagen: imageUrl
                 })
                 .eq("id", selectedProduct.id);
 
@@ -311,12 +460,13 @@ export default function AdminTable({ onProductUpdate }) {
             setProducts((prevProducts) =>
                 prevProducts.map((p) =>
                     p.id === selectedProduct.id
-                        ? { 
-                            ...p, 
-                            precio: parsedPrice, 
+                        ? {
+                            ...p,
+                            precio: parsedPrice,
                             visible_en_web: editVisibleEnWeb,
+                            imagen: imageUrl,
                             actualizado_en: new Date().toISOString()
-                          }
+                        }
                         : p
                 )
             );
@@ -328,6 +478,8 @@ export default function AdminTable({ onProductUpdate }) {
 
             setIsModalOpen(false);
             setSelectedProduct(null);
+            setSelectedFile(null);
+            setImagePreview(null);
         } catch (err) {
             console.error("Error updating product:", err);
             setModalError(err.message || "Ocurrió un error al guardar los cambios.");
@@ -339,7 +491,7 @@ export default function AdminTable({ onProductUpdate }) {
     const handleConfirmDelete = async () => {
         setDeleteError("");
         const expectedPwd = process.env.NEXT_PUBLIC_DELETE_PWD || process.env.DELETE_PWD;
-        
+
         if (!expectedPwd) {
             setDeleteError("El código de eliminación (DELETE_PWD) no está configurado en el archivo .env.");
             return;
@@ -418,7 +570,7 @@ export default function AdminTable({ onProductUpdate }) {
 
     return (
         <div className="w-full mt-8 px-4 md:px-8 flex flex-col gap-6">
-            
+
             {/* Admin Table Filters */}
             <div className="flex flex-col gap-4 bg-white border border-neutral-200 p-5 rounded-2xl shadow-sm">
                 <div className="flex items-center justify-between gap-4">
@@ -462,9 +614,8 @@ export default function AdminTable({ onProductUpdate }) {
                                             return (
                                                 <label
                                                     key={colKey}
-                                                    className={`flex items-center gap-2 text-xs cursor-pointer py-0.5 text-neutral-700 ${
-                                                        isMandatory ? "opacity-60 cursor-not-allowed font-medium" : "hover:text-neutral-900"
-                                                    }`}
+                                                    className={`flex items-center gap-2 text-xs cursor-pointer py-0.5 text-neutral-700 ${isMandatory ? "opacity-60 cursor-not-allowed font-medium" : "hover:text-neutral-900"
+                                                        }`}
                                                 >
                                                     <input
                                                         type="checkbox"
@@ -498,7 +649,7 @@ export default function AdminTable({ onProductUpdate }) {
 
                 {/* Grid for Filters */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                    
+
                     {/* Search Input */}
                     <div className="relative">
                         <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" />
@@ -555,7 +706,48 @@ export default function AdminTable({ onProductUpdate }) {
                             emptyMessage="No se encontraron proveedores"
                         />
                     </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full lg:w-1/2">
+                    {/* Visibility Select */}
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-1 select-none">Visibilidad</span>
+                        <div className="relative">
+                            <select
+                                value={selectedVisibility}
+                                onChange={(e) => {
+                                    setSelectedVisibility(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-neutral-200 bg-white shadow-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition text-sm text-neutral-800 appearance-none cursor-pointer font-medium"
+                            >
+                                <option value="">Todos</option>
+                                <option value="visible">Visibles en web</option>
+                                <option value="oculto">No visibles en web</option>
+                            </select>
+                            <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={12} />
+                        </div>
+                    </div>
+
+                    {/* Image Status Select */}
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide mb-1 select-none">Imagen</span>
+                        <div className="relative">
+                            <select
+                                value={selectedImageStatus}
+                                onChange={(e) => {
+                                    setSelectedImageStatus(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-neutral-200 bg-white shadow-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition text-sm text-neutral-800 appearance-none cursor-pointer font-medium"
+                            >
+                                <option value="">Todos</option>
+                                <option value="con_imagen">Con imagen</option>
+                                <option value="sin_imagen">Sin imagen</option>
+                            </select>
+                            <FaChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" size={12} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Year Range Slider Row */}
@@ -649,8 +841,8 @@ export default function AdminTable({ onProductUpdate }) {
                         <tbody className="divide-y divide-neutral-200 text-neutral-700 text-xs text-center">
                             {paginatedProducts.length > 0 ? (
                                 paginatedProducts.map((product) => (
-                                    <tr 
-                                        key={product.id} 
+                                    <tr
+                                        key={product.id}
                                         onClick={() => handleRowClick(product)}
                                         className="hover:bg-neutral-50/50 transition-colors cursor-pointer"
                                         title="Haz clic para ver todos los campos y editar"
@@ -791,15 +983,15 @@ export default function AdminTable({ onProductUpdate }) {
                         {/* Modal Header */}
                         <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
                             <h4 className="text-lg font-bold">Detalle y Edición de Producto</h4>
-                            <button 
+                            <button
                                 type="button"
-                                onClick={handleCancel} 
+                                onClick={handleCancel}
                                 className="text-white/60 hover:text-white transition cursor-pointer text-2xl font-bold p-1 focus:outline-none"
                             >
                                 &times;
                             </button>
                         </div>
-                        
+
                         {/* Modal Body */}
                         <form onSubmit={handleSave} className="p-6 flex flex-col gap-6 max-h-[80vh] overflow-y-auto">
                             {modalError && (
@@ -807,7 +999,7 @@ export default function AdminTable({ onProductUpdate }) {
                                     {modalError}
                                 </div>
                             )}
-                            
+
                             <div className="flex flex-col md:flex-row gap-6">
                                 {/* Columns Grid */}
                                 <div className="flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -872,22 +1064,35 @@ export default function AdminTable({ onProductUpdate }) {
                                         <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Descripción</span>
                                         <textarea readOnly rows={2} value={selectedProduct.descripcion || "-"} className="bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-500 focus:outline-none resize-none cursor-not-allowed" />
                                     </div>
-                                    
+
                                     {/* Editable Fields */}
                                     <div className="flex flex-col gap-1">
                                         <span className="text-[10px] font-bold text-black uppercase tracking-wide">Precio Público ($) *</span>
-                                        <input 
-                                            type="text" 
+                                        <input
+                                            type="text"
                                             required
                                             value={editPrecio}
                                             onChange={(e) => setEditPrecio(e.target.value)}
                                             className="border border-neutral-300 rounded-lg px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                                         />
                                     </div>
-                                    
+
+                                    {/* Aplicar IVA Checkbox */}
                                     <div className="flex flex-col justify-end pb-1.5 pl-1">
                                         <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
-                                            <input 
+                                            <input
+                                                type="checkbox"
+                                                checked={editAplicarIva}
+                                                onChange={(e) => handleEditAplicarIvaChange(e.target.checked)}
+                                                className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
+                                            />
+                                            <span>Aplicar IVA (16% + 190%)</span>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex flex-col justify-end pb-1.5 pl-1">
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
+                                            <input
                                                 type="checkbox"
                                                 checked={editVisibleEnWeb}
                                                 onChange={(e) => setEditVisibleEnWeb(e.target.checked)}
@@ -896,32 +1101,91 @@ export default function AdminTable({ onProductUpdate }) {
                                             <span>Visible en la Web (Visibilidad)</span>
                                         </label>
                                     </div>
+
+                                    {/* Drag and Drop Image Box */}
+                                    <div className="sm:col-span-2 flex flex-col gap-2 mt-2">
+                                        <label className="text-[10px] font-bold text-black uppercase tracking-wide">Cargar o Reemplazar Imagen (Drag Box)</label>
+                                        <div 
+                                            onDragEnter={handleDrag}
+                                            onDragOver={handleDrag}
+                                            onDragLeave={handleDrag}
+                                            onDrop={handleDrop}
+                                            className={`relative border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-2.5 transition min-h-[140px] ${
+                                                dragActive ? "border-black bg-neutral-50" : "border-neutral-300 hover:border-neutral-400"
+                                            }`}
+                                        >
+                                            <input 
+                                                ref={fileInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            />
+                                            
+                                            {imagePreview ? (
+                                                <div className="flex flex-col items-center gap-2 z-20">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-neutral-600 font-semibold truncate max-w-[200px]">{selectedFile?.name}</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={removeFile}
+                                                            className="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition cursor-pointer"
+                                                        >
+                                                            Eliminar
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center text-center gap-1.5 pointer-events-none">
+                                                    <svg className="w-8 h-8 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    <p className="text-xs text-neutral-700 font-semibold">Arrastra tu imagen aquí, o haz clic para buscar</p>
+                                                    <p className="text-[10px] text-neutral-400 font-medium">Formatos soportados: JPEG, PNG, WEBP (Máx. 5MB)</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
 
-                                {/* Right column: Image (only if exists) */}
-                                {selectedProduct.imagen && (
+                                {/* Right column: Image (only if exists or new preview exists) */}
+                                {(imagePreview || selectedProduct.imagen) && (
                                     <div className="flex flex-col gap-2 shrink-0 self-start md:w-56">
-                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">Imagen del Producto</span>
+                                        <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wide">
+                                            {imagePreview ? "Nueva Imagen (Vista Previa)" : "Imagen del Producto"}
+                                        </span>
                                         <div className="border border-neutral-200 rounded-2xl overflow-hidden bg-neutral-50 flex items-center justify-center p-2 h-56 w-56 shadow-sm">
-                                            <a 
-                                                href={selectedProduct.imagen}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="h-full w-full flex items-center justify-center cursor-zoom-in"
-                                                title="Ver imagen completa"
-                                            >
-                                                <img 
-                                                    src={selectedProduct.imagen} 
-                                                    alt={selectedProduct.modelo || "Producto"} 
-                                                    className="h-full w-full object-contain rounded-xl hover:scale-105 transition duration-300"
-                                                    onError={(e) => {
-                                                        e.target.onerror = null;
-                                                        e.target.src = "https://placehold.co/250?text=Sin+Imagen";
-                                                    }}
+                                            {imagePreview ? (
+                                                <img
+                                                    src={imagePreview}
+                                                    alt="Nueva Vista Previa"
+                                                    className="h-full w-full object-contain rounded-xl"
                                                 />
-                                            </a>
+                                            ) : (
+                                                <a
+                                                    href={selectedProduct.imagen}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="h-full w-full flex items-center justify-center cursor-zoom-in"
+                                                    title="Ver imagen completa"
+                                                >
+                                                    <img
+                                                        src={selectedProduct.imagen}
+                                                        alt={selectedProduct.modelo || "Producto"}
+                                                        className="h-full w-full object-contain rounded-xl hover:scale-105 transition duration-300"
+                                                        onError={(e) => {
+                                                            e.target.onerror = null;
+                                                            e.target.src = "https://placehold.co/250?text=Sin+Imagen";
+                                                        }}
+                                                    />
+                                                </a>
+                                            )}
                                         </div>
-                                        <span className="text-[9px] text-neutral-400 text-center">Haz clic para ver tamaño completo</span>
+                                        {!imagePreview ? (
+                                            <span className="text-[9px] text-neutral-400 text-center">Haz clic para ver tamaño completo</span>
+                                        ) : (
+                                            <span className="text-[9px] text-emerald-600 text-center font-semibold animate-pulse">Nueva imagen seleccionada</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -931,7 +1195,7 @@ export default function AdminTable({ onProductUpdate }) {
                                     <p className="text-sm font-bold text-red-800">¿Estás seguro de que deseas eliminar este producto permanentemente?</p>
                                     <p className="text-xs text-neutral-600">Por favor, ingresa el código de eliminación para confirmar:</p>
                                     <div className="flex flex-col sm:flex-row gap-2 mt-1">
-                                        <input 
+                                        <input
                                             type="password"
                                             placeholder="Código de eliminación"
                                             value={deletePasswordInput}
