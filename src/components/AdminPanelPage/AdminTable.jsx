@@ -113,6 +113,7 @@ export default function AdminTable({ onProductUpdate }) {
     const [editPrecio, setEditPrecio] = useState("");
     const [editVisibleEnWeb, setEditVisibleEnWeb] = useState(false);
     const [editAplicarIva, setEditAplicarIva] = useState(false);
+    const [editRedondear10, setEditRedondear10] = useState(false);
     const [saving, setSaving] = useState(false);
     const [modalError, setModalError] = useState("");
 
@@ -349,11 +350,13 @@ export default function AdminTable({ onProductUpdate }) {
     };
 
     // Modal handlers
-    const calculatePublicPrice = (provPrice, useIva) => {
+    const calculatePublicPrice = (provPrice, useIva, roundTo10) => {
         const parsed = parseFloat(provPrice);
         if (!isNaN(parsed) && parsed > 0) {
             const basePrice = useIva ? parsed * 1.16 : parsed;
-            return (basePrice * 1.90).toFixed(2);
+            const markupPrice = basePrice * 1.90;
+            const finalPrice = roundTo10 ? Math.round(markupPrice / 10) * 10 : markupPrice;
+            return finalPrice.toFixed(2);
         }
         return "";
     };
@@ -361,7 +364,14 @@ export default function AdminTable({ onProductUpdate }) {
     const handleEditAplicarIvaChange = (checked) => {
         setEditAplicarIva(checked);
         if (selectedProduct && selectedProduct.precio_proveedor != null) {
-            setEditPrecio(calculatePublicPrice(selectedProduct.precio_proveedor, checked));
+            setEditPrecio(calculatePublicPrice(selectedProduct.precio_proveedor, checked, editRedondear10));
+        }
+    };
+
+    const handleEditRedondear10Change = (checked) => {
+        setEditRedondear10(checked);
+        if (selectedProduct && selectedProduct.precio_proveedor != null) {
+            setEditPrecio(calculatePublicPrice(selectedProduct.precio_proveedor, editAplicarIva, checked));
         }
     };
 
@@ -370,6 +380,7 @@ export default function AdminTable({ onProductUpdate }) {
         setEditPrecio(product.precio != null ? product.precio.toString() : "");
         setEditVisibleEnWeb(!!product.visible_en_web);
         setEditAplicarIva(false);
+        setEditRedondear10(false);
         setModalError("");
         setSelectedFile(null);
         setImagePreview(null);
@@ -385,6 +396,7 @@ export default function AdminTable({ onProductUpdate }) {
         setSelectedFile(null);
         setImagePreview(null);
         setEditAplicarIva(false);
+        setEditRedondear10(false);
     };
 
     const handleSave = async (e) => {
@@ -1087,6 +1099,19 @@ export default function AdminTable({ onProductUpdate }) {
                                                 className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
                                             />
                                             <span>Aplicar IVA (16% + 190%)</span>
+                                        </label>
+                                    </div>
+
+                                    {/* Redondear Checkbox */}
+                                    <div className="flex flex-col justify-end pb-1.5 pl-1">
+                                        <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
+                                            <input
+                                                type="checkbox"
+                                                checked={editRedondear10}
+                                                onChange={(e) => handleEditRedondear10Change(e.target.checked)}
+                                                className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
+                                            />
+                                            <span>Redondear al múltiplo de 10 más cercano</span>
                                         </label>
                                     </div>
 

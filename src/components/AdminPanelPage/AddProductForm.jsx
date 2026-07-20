@@ -18,28 +18,36 @@ export default function AddProductForm({ onProductAdded }) {
     const [idProveedor, setIdProveedor] = useState("");
     const [visibleEnWeb, setVisibleEnWeb] = useState(true);
     const [aplicarIva, setAplicarIva] = useState(false);
+    const [redondear10, setRedondear10] = useState(false);
 
     // Collapsible states
     const [isOpen, setIsOpen] = useState(false);
 
     // Dynamic price calculation markup (190% of base, with optional 16% IVA first)
-    const calculatePublicPrice = (provPrice, useIva) => {
+    const calculatePublicPrice = (provPrice, useIva, roundTo10) => {
         const parsed = parseFloat(provPrice);
         if (!isNaN(parsed) && parsed > 0) {
             const basePrice = useIva ? parsed * 1.16 : parsed;
-            return (basePrice * 1.90).toFixed(2);
+            const markupPrice = basePrice * 1.90;
+            const finalPrice = roundTo10 ? Math.round(markupPrice / 10) * 10 : markupPrice;
+            return finalPrice.toFixed(2);
         }
         return "";
     };
 
     const handlePrecioProveedorChange = (val) => {
         setPrecioProveedor(val);
-        setPrecio(calculatePublicPrice(val, aplicarIva));
+        setPrecio(calculatePublicPrice(val, aplicarIva, redondear10));
     };
 
     const handleAplicarIvaChange = (checked) => {
         setAplicarIva(checked);
-        setPrecio(calculatePublicPrice(precioProveedor, checked));
+        setPrecio(calculatePublicPrice(precioProveedor, checked, redondear10));
+    };
+
+    const handleRedondear10Change = (checked) => {
+        setRedondear10(checked);
+        setPrecio(calculatePublicPrice(precioProveedor, aplicarIva, checked));
     };
 
     // Dropdown list data
@@ -224,6 +232,7 @@ export default function AddProductForm({ onProductAdded }) {
             setIdProveedor("");
             setVisibleEnWeb(true);
             setAplicarIva(false);
+            setRedondear10(false);
             removeFile();
 
             // Refresh parent statistics/tables
@@ -431,6 +440,19 @@ export default function AddProductForm({ onProductAdded }) {
                                     className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
                                 />
                                 <span>Aplicar IVA (16%)</span>
+                            </label>
+                        </div>
+
+                        {/* Redondear Checkbox */}
+                        <div className="flex flex-col justify-end pb-3 pl-1">
+                            <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-neutral-800">
+                                <input 
+                                    type="checkbox"
+                                    checked={redondear10}
+                                    onChange={(e) => handleRedondear10Change(e.target.checked)}
+                                    className="w-4.5 h-4.5 rounded border-neutral-300 text-black focus:ring-black cursor-pointer accent-black"
+                                />
+                                <span>Redondear al múltiplo de 10 más cercano</span>
                             </label>
                         </div>
 
