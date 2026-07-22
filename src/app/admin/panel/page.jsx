@@ -8,6 +8,7 @@ import AdminTable from "@/components/AdminPanelPage/AdminTable";
 import ProvidersTable from "@/components/AdminPanelPage/ProvidersTable";
 import BrandsTable from "@/components/AdminPanelPage/BrandsTable";
 import AddProductForm from "@/components/AdminPanelPage/AddProductForm";
+import UploadExcelForm from "@/components/AdminPanelPage/UploadExcelForm";
 
 export default function PanelAdminPage() {
     const router = useRouter();
@@ -161,6 +162,9 @@ export default function PanelAdminPage() {
             <AdminTable onProductUpdate={() => setRefreshTrigger((prev) => prev + 1)} />
             <div className="w-full px-4 md:px-8 mt-6">
                 <AddProductForm onProductAdded={() => setRefreshTrigger((prev) => prev + 1)} />
+            </div>
+            <div className="w-full px-4 md:px-8 mt-6">
+                <UploadExcelForm />
             </div>
             <div className="w-full px-4 md:px-8 grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
                 {/* Proveedores Column */}
